@@ -1,0 +1,2639 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1, viewport-fit=cover" />
+    <title>Student Management System — Dynamic UPI QR Payment</title>
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ReadBench" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="apple-touch-icon" href="#iconPlaceholder" />
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    </script>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #profileModal,
+            #profileModal * {
+                visibility: visible;
+            }
+            #profileModal {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                background: white !important;
+                display: block !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            #profileModal .bg-white {
+                box-shadow: none !important;
+                border: 1px solid #e5e7eb !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            button,
+            .fa-xmark,
+            .fa-print {
+                display: none !important;
+            }
+        }
+        #loginModal {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        .login-card {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        #logoutDropdown {
+            transition: all 0.2s ease;
+            transform-origin: top right;
+        }
+        .qr-square {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .qr-square img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .qr-square i {
+            font-size: 20px;
+            color: #374151;
+        }
+        #subscriptionModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .subscription-card {
+            background: white;
+            max-width: 440px;
+            width: 90%;
+            border-radius: 32px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: modalSlideUp 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .subscription-card h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #dc2626, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+        }
+        .subscription-card .expiry-badge {
+            background: #fef3c7;
+            color: #d97706;
+            padding: 0.25rem 1rem;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .subscription-card p {
+            color: #4b5563;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        .pay-btn {
+            background: #1e3a8a;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            color: white;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 60px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3);
+        }
+        .pay-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+        }
+        .pay-btn:active {
+            transform: translateY(0);
+        }
+        .sub-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 1.5rem;
+        }
+        body.modal-open {
+            overflow: hidden;
+        }
+        .template-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100002;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .template-card {
+            background: white;
+            max-width: 520px;
+            width: 100%;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.3);
+            animation: modalSlideUp 0.3s ease;
+            overflow: hidden;
+        }
+        .template-header {
+            background: linear-gradient(135deg, #075e54, #128c7e);
+            padding: 1rem 1.5rem;
+            color: white;
+        }
+        .template-body {
+            padding: 1.5rem;
+        }
+        .template-selector {
+            margin: 1rem 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .template-option {
+            flex: 1;
+            text-align: center;
+            padding: 0.6rem 0.8rem;
+            border-radius: 60px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .template-option:hover,
+        .template-option.active {
+            background: #e0e7ff;
+            border-color: #6366f1;
+            color: #1e3a8a;
+        }
+        .send-wa-btn {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .send-wa-btn:hover {
+            background: #20bd59;
+            transform: scale(0.98);
+        }
+        .close-template {
+            background: transparent;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #fff;
+        }
+        .char-count {
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-align: right;
+            margin-top: 4px;
+        }
+        #paymentMethodModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100003;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .payment-card {
+            background: white;
+            max-width: 400px;
+            width: 100%;
+            border-radius: 28px;
+            overflow: hidden;
+            animation: modalSlideUp 0.3s ease;
+        }
+        .payment-header {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            padding: 1rem 1.5rem;
+            color: white;
+        }
+        .payment-body {
+            padding: 1.5rem;
+        }
+        .payment-option {
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .payment-option:hover {
+            border-color: #2563eb;
+            background: #f0f9ff;
+        }
+        .payment-option.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+        .payment-option i {
+            font-size: 28px;
+        }
+        .amount-input {
+            margin-top: 1rem;
+            display: none;
+        }
+        .amount-input.show {
+            display: block;
+        }
+        .amount-input input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .amount-input input:focus {
+            border-color: #2563eb;
+        }
+        .qr-display {
+            margin-top: 1rem;
+            text-align: center;
+            display: none;
+        }
+        .qr-display.show {
+            display: block;
+        }
+        .qr-display img {
+            max-width: 200px;
+            margin: 0 auto;
+            border-radius: 16px;
+            background: white;
+            padding: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .confirm-payment-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+        .confirm-payment-btn:hover {
+            background: #16a34a;
+        }
+        .invoice-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100004;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .invoice-card {
+            background: white;
+            max-width: 600px;
+            width: 100%;
+            border-radius: 28px;
+            overflow: hidden;
+            animation: modalSlideUp 0.3s ease;
+        }
+        .invoice-header {
+            background: linear-gradient(135deg, #075e54, #128c7e);
+            padding: 1rem 1.5rem;
+            color: white;
+        }
+        .invoice-body {
+            padding: 1.5rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .due-student-item {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+        .due-student-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border-color: #128c7e;
+        }
+        .invoice-qr-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            background: #f9fafb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .invoice-qr-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .send-invoice-btn {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .send-invoice-btn:hover {
+            background: #20bd59;
+            transform: scale(0.97);
+        }
+        #invoiceModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100005;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .invoice-detail-card {
+            background: white;
+            max-width: 700px;
+            width: 100%;
+            border-radius: 28px;
+            overflow: hidden;
+            animation: modalSlideUp 0.3s ease;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.3);
+        }
+        .invoice-detail-header {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            padding: 1rem 1.5rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .invoice-detail-body {
+            padding: 1.5rem;
+            background: white;
+        }
+        .receipt-header {
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .receipt-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        .receipt-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+        .student-info {
+            background: #f9fafb;
+            padding: 0.75rem;
+            border-radius: 16px;
+            margin-bottom: 1rem;
+        }
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .payment-table th,
+        .payment-table td {
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        .payment-table th {
+            background: #f3f4f6;
+        }
+        .totals {
+            margin-top: 1rem;
+            text-align: right;
+            font-weight: bold;
+        }
+        .qr-section {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .qr-section img {
+            max-width: 120px;
+            margin: 0 auto;
+        }
+        .close-invoice {
+            background: transparent;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: white;
+        }
+        .pdf-save-btn {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .pdf-save-btn:hover {
+            background: #d97706;
+            transform: scale(0.97);
+        }
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+        }
+        .status-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+        }
+        .status-dot.paid {
+            background-color: #22c55e;
+        }
+        .status-dot.partial {
+            background-color: #eab308;
+        }
+        .status-dot.due {
+            background-color: #ef4444;
+        }
+        .mobile-bottom-nav {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.02);
+            padding: 0.5rem 0.25rem 0.75rem;
+        }
+        .nav-btn-mobile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            flex: 1;
+            padding: 0.5rem 0;
+            border-radius: 2rem;
+            transition: all 0.2s ease;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+        .nav-btn-mobile i {
+            font-size: 1.35rem;
+            margin-bottom: 0.15rem;
+        }
+        .nav-btn-mobile.active {
+            color: #4f46e5;
+            background: #eef2ff;
+        }
+        .nav-btn-mobile:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 480px) {
+            .nav-btn-mobile i {
+                font-size: 1.25rem;
+            }
+            .nav-btn-mobile {
+                font-size: 0.65rem;
+                padding: 0.4rem 0;
+            }
+        }
+        .sna-badge {
+            background: #8b5cf6;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .sna-set-option {
+            color: #8b5cf6;
+            font-weight: 600;
+        }
+
+        /* DAILY REFRESH MODAL - HIGHEST Z-INDEX, NO BLOCKING */
+        #dailyRefreshModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 200001 !important;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .daily-refresh-card {
+            background: white;
+            max-width: 450px;
+            width: 100%;
+            border-radius: 40px;
+            text-align: center;
+            padding: 2rem 1.8rem;
+            animation: modalSlideUp 0.4s ease;
+            box-shadow: 0 30px 40px -15px rgba(0, 0, 0, 0.4);
+        }
+        .daily-refresh-card i {
+            font-size: 3.5rem;
+            color: #f97316;
+            margin-bottom: 1rem;
+        }
+        .daily-refresh-card h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #dc2626, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+        }
+        .daily-refresh-card p {
+            color: #374151;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+        .force-refresh-btn {
+            background: linear-gradient(135deg, #dc2626, #f97316);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 1rem;
+            width: 100%;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 0.5rem;
+            box-shadow: 0 6px 14px rgba(220, 38, 38, 0.3);
+        }
+        .force-refresh-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+        }
+        .force-refresh-btn:active {
+            transform: translateY(1px);
+        }
+        /* Subscription modal stays below */
+        #subscriptionModal {
+            z-index: 100000 !important;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-100 text-gray-900">
+
+    <!-- DAILY REFRESH MODAL -->
+    <div id="dailyRefreshModal">
+        <div class="daily-refresh-card">
+            <i class="fa-regular fa-calendar-circle-exclamation"></i>
+            <h2>📅 Daily Fee Refresh</h2>
+            <p>As per admission date based monthly cycle, it's time to refresh fees for eligible students. <strong>This action is mandatory once per day.</strong> Click below to update due statuses.</p>
+            <button id="dailyForceRefreshBtn" class="force-refresh-btn"><i class="fa-solid fa-rotate-right mr-2"></i> Refresh Fees Now</button>
+        </div>
+    </div>
+
+    <!-- SUBSCRIPTION MODAL -->
+    <div id="subscriptionModal">
+        <div class="subscription-card">
+            <div class="mb-2"><i class="fa-solid fa-lock text-4xl text-rose-500"></i></div>
+            <h2>Plan Expired</h2>
+            <div id="expiryMessage" class="expiry-badge">Your subscription has ended</div>
+            <p id="featureAccessMessage">Pay just ₹1 to unlock <strong>ReadBench</strong> for 30 days and continue using all features.</p>
+            <button id="payNowBtn" class="pay-btn"><i class="fa-solid fa-indian-rupee-sign mr-1"></i> Pay ₹1 Now</button>
+            <p class="sub-info text-xs mt-4">🔒 Secure payment via Razorpay<br>After payment, access will be restored instantly.</p>
+        </div>
+    </div>
+
+    <!-- WHATSAPP TEMPLATE MODAL -->
+    <div id="whatsappTemplateModal" class="template-modal">
+        <div class="template-card">
+            <div class="template-header flex justify-between items-center">
+                <div class="flex items-center gap-2"><i class="fa-brands fa-whatsapp text-xl"></i><span class="font-semibold">WhatsApp Message Templates</span></div>
+                <button id="closeTemplateModal" class="close-template"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="template-body">
+                <p class="text-sm text-gray-600 mb-2">Choose a template:</p>
+                <div class="template-selector" id="templateSelector">
+                    <button class="template-option" data-template="welcome">🎉 Welcome Message</button>
+                    <button class="template-option" data-template="payment">✅ Payment Confirmation</button>
+                    <button class="template-option" data-template="reminder">⏰ Fee Reminder</button>
+                    <button class="template-option" data-template="inactive">⚠️ Inactive Alert</button>
+                </div>
+                <label class="block text-sm font-medium text-gray-700 mt-3 mb-1">Edit Message (personalized)</label>
+                <textarea id="customMessageInput" rows="6" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"></textarea>
+                <div class="char-count" id="charCount">0 characters</div>
+                <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-2"><span><i class="fa-regular fa-message"></i> Use: {student_name}, {amount}, {due}</span></div>
+                <div class="mt-4"><button id="sendWhatsAppNowBtn" class="send-wa-btn"><i class="fa-brands fa-whatsapp"></i> Send via WhatsApp</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVOICE REMINDER MODAL -->
+    <div id="invoiceReminderModal" class="invoice-modal">
+        <div class="invoice-card">
+            <div class="invoice-header flex justify-between items-center">
+                <div><i class="fa-regular fa-file-invoice text-xl mr-2"></i><span class="font-semibold">📄 Fee Invoice Reminders</span>
+                    <p class="text-[11px] opacity-90 mt-0.5">Students with pending dues (Due / Partial)</p>
+                </div>
+                <button id="closeInvoiceModal" class="close-template text-white text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="invoice-body" id="invoiceStudentList">
+                <div class="text-center py-8 text-gray-400">Loading students...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INVOICE MODAL (SINGLE RECEIPT) -->
+    <div id="invoiceModal">
+        <div class="invoice-detail-card">
+            <div class="invoice-detail-header flex justify-between items-center">
+                <span class="font-semibold"><i class="fa-solid fa-receipt"></i> Fee Receipt</span>
+                <button id="closeInvoiceModalBtn" class="close-invoice"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="invoice-detail-body" id="invoiceContent"></div>
+        </div>
+    </div>
+
+    <!-- PAYMENT METHOD MODAL (DYNAMIC UPI QR) -->
+    <div id="paymentMethodModal">
+        <div class="payment-card">
+            <div class="payment-header">
+                <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fa-solid fa-credit-card"></i> Select Payment Method</h3>
+                <p id="paymentStudentName" class="text-sm opacity-90 mt-1"></p>
+            </div>
+            <div class="payment-body">
+                <div class="payment-option" data-method="cash"><i class="fa-solid fa-money-bill-wave text-green-600"></i>
+                    <div>
+                        <div class="font-semibold">Cash Payment</div>
+                        <div class="text-xs text-gray-500">Record cash payment received</div>
+                    </div>
+                </div>
+                <div class="payment-option" data-method="upi"><i class="fa-solid fa-qrcode text-indigo-600"></i>
+                    <div>
+                        <div class="font-semibold">UPI Payment (Dynamic QR)</div>
+                        <div class="text-xs text-gray-500">Enter amount → Scan QR → Pay</div>
+                    </div>
+                </div>
+                <div id="cashAmountDiv" class="amount-input">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Enter Amount Received (₹)</label>
+                    <input type="number" id="cashAmount" placeholder="Enter amount" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:ring-indigo-500 focus:border-indigo-500" />
+                </div>
+                <div id="qrDisplayDiv" class="qr-display">
+                    <div class="mb-2 text-sm font-medium text-gray-700">💸 Amount (₹) & Dynamic UPI QR</div>
+                    <input type="number" id="upiAmount" placeholder="Enter amount" class="w-full px-3 py-2 rounded-xl border border-gray-200 focus:ring-indigo-500 focus:border-indigo-500 mb-3" />
+                    <div id="dynamicQrContainer" class="flex justify-center my-2">
+                        <img id="dynamicQrImage" src="" class="max-w-[180px] rounded-xl shadow-md" style="display: none;" />
+                        <div id="noUpiIdMessage" class="text-center text-gray-500 text-sm p-4 bg-gray-50 rounded-xl">
+                            <i class="fa-solid fa-circle-exclamation text-3xl mb-2 block"></i>
+                            <p>UPI ID not configured</p>
+                            <p class="text-xs mt-1">Please set Library Owner UPI ID in Settings</p>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-2">QR will update automatically when amount changes</p>
+                </div>
+                <button id="confirmPaymentBtn" class="confirm-payment-btn"><i class="fa-solid fa-check-circle mr-2"></i> Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN MODAL -->
+    <div id="loginModal" class="fixed inset-0 hidden z-[9999] flex items-center justify-center p-4">
+        <div class="login-card bg-white w-full max-w-md rounded-2xl shadow-xl p-6 border border-gray-200">
+            <div class="text-center mb-6">
+                <div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white text-2xl font-bold mb-3">SM</div>
+                <h2 class="text-xl font-semibold text-gray-800">Welcome Back!</h2>
+                <p class="text-sm text-gray-500 mt-1">Sign in to access your library</p>
+            </div>
+            <div id="loginError" class="mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-xl hidden"></div>
+            <div class="space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="loginEmail" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="library@example.com" /></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Password</label><input type="password" id="loginPassword" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="••••••••" /></div>
+                <button id="loginBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+                <div class="relative my-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-300"></div></div>
+                    <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">New library?</span></div>
+                </div>
+                <button id="registerBtn" class="w-full border border-indigo-600 text-indigo-600 py-3 rounded-xl hover:bg-indigo-50 transition-colors font-medium text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-user-plus"></i> Register New Library</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGISTER MODAL -->
+    <div id="registerModal" class="fixed inset-0 hidden z-[9999] flex items-center justify-center p-4">
+        <div class="login-card bg-white w-full max-w-md rounded-2xl shadow-xl p-6 border border-gray-200">
+            <div class="text-center mb-6">
+                <div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 text-white text-2xl font-bold mb-3">SM</div>
+                <h2 class="text-xl font-semibold text-gray-800">Create New Library</h2>
+                <p class="text-sm text-gray-500 mt-1">Register your library account</p>
+            </div>
+            <div id="registerError" class="mb-4 p-3 bg-rose-50 text-rose-600 text-sm rounded-xl hidden"></div>
+            <div class="space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Library Name</label><input type="text" id="registerLibraryName" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="ANIKET ROY LIBRARY" /></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Owner Name</label><input type="text" id="registerOwnerName" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Aniket Roy" /></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="registerEmail" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="library@example.com" /></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Password</label><input type="password" id="registerPassword" class="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="At least 6 characters" /></div>
+                <div class="flex gap-2"><button id="registerBackBtn" class="w-1/3 border border-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm">Back</button><button id="registerSubmitBtn" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"><i class="fa-solid fa-user-check"></i> Register</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-gray-200 p-4 relative">
+            <div class="flex items-center justify-between mb-2 no-print">
+                <div class="flex gap-2"><button id="closeProfileModal" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-lg"></i></button><button id="profilePrintBtn" class="px-2 py-1 rounded-xl bg-gray-100 text-[11px] hover:bg-gray-200"><i class="fa-solid fa-print text-xs mr-1"></i> Print Card</button><button id="profileWhatsAppBtn" class="px-2 py-1 rounded-xl bg-emerald-100 text-emerald-700 text-[11px] hover:bg-emerald-200 hidden flex items-center gap-1"><i class="fa-brands fa-whatsapp text-xs"></i> Share</button></div>
+            </div>
+            <div class="flex flex-col items-center text-center">
+                <div class="avatar-container"><img id="profileAvatar" class="h-20 w-20 rounded-full object-cover border-2 border-indigo-500" /><span id="profileStatusDot" class="status-dot"></span></div>
+                <h2 id="profileName" class="mt-3 text-lg font-semibold"></h2>
+                <p id="profileMobile" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div class="mt-4 space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-gray-500">Seat (Set):</span><span id="profileSeat" class="font-medium"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Aadhar:</span><span id="profileAadhar" class="font-medium"></span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Admission:</span><span id="profileAdmission" class="font-medium"></span></div>
+                <div class="pt-2 border-t border-gray-200"><p class="font-semibold text-sm mb-1">Assigned Shift & Sets</p>
+                    <div id="profileAssignments" class="space-y-1"></div>
+                </div>
+                <div class="pt-2 border-t border-gray-200"><p class="font-semibold text-sm mb-1">Fee Details</p>
+                    <div class="flex justify-between"><span class="text-gray-500">Status:</span><span id="profileFeeStatus" class="font-medium"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Monthly Fee:</span><span id="profileFeeMonthly" class="font-medium"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Paid Amount:</span><span id="profileFeeAmount" class="font-medium"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Last Paid:</span><span id="profileFeeLastPaid" class="font-medium"></span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Payment Method:</span><span id="profilePaymentMethod" class="font-medium"></span></div>
+                </div>
+                <div class="pt-2 border-t border-gray-200"><p class="font-semibold text-sm mb-1">Monthly Fee Status (This Year)</p>
+                    <div id="profileMonthGrid" class="grid grid-cols-4 gap-1 mt-1"></div>
+                    <p class="text-[10px] text-gray-500 mt-1">Green = Paid, Yellow = Partial, Grey = Due. Current month highlighted.</p>
+                </div>
+            </div>
+            <div class="text-center mt-2 text-[9px] text-gray-300 no-print">blinkit India's Last Minute App</div>
+        </div>
+    </div>
+
+    <!-- SET/SHIFT POPUP -->
+    <div id="setPopupModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-gray-200 p-4 relative">
+            <div class="flex items-center justify-between mb-3">
+                <div><h3 id="setPopupTitle" class="text-sm font-semibold"></h3><p id="setPopupSubtitle" class="text-[11px] text-gray-500"></p></div>
+                <button onclick="closeSetPopup()" class="text-gray-500 hover:text-gray-700 text-xl leading-none"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="setPopupList" class="space-y-2 text-[13px] max-h-72 overflow-y-auto"></div>
+            <div class="mt-3 text-right"><button onclick="closeSetPopup()" class="px-4 py-2 rounded-xl bg-gray-100 text-xs hover:bg-gray-200 transition-colors">Close</button></div>
+        </div>
+    </div>
+
+    <!-- LOGOUT DROPDOWN -->
+    <div id="logoutDropdown" class="fixed hidden z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[150px]"><button id="logoutBtn" class="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-gray-50 flex items-center gap-2"><i class="fa-solid fa-sign-out-alt"></i> Logout</button></div>
+
+    <div id="app" class="flex h-screen hidden">
+        <!-- Sidebar -->
+        <aside class="hidden md:flex md:flex-col w-64 bg-white border-r border-gray-200">
+            <div class="flex items-center justify-between px-4 py-4 border-b border-gray-200">
+                <div class="flex items-center gap-2"><span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 text-white text-lg font-bold">SM</span>
+                    <div><h1 class="text-sm font-semibold">ReadBench</h1><p class="text-xs text-gray-500">Library Managment System</p></div>
+                </div>
+            </div>
+            <nav class="flex-1 px-2 py-3 space-y-1 text-sm">
+                <button data-section="dashboard" class="nav-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700"><i class="fa-solid fa-gauge-high w-5 text-center"></i><span>Dashboard</span></button>
+                <button data-section="students" class="nav-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 text-gray-700"><i class="fa-solid fa-user-graduate w-5 text-center"></i><span>Students</span></button>
+                <button data-section="library" class="nav-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 text-gray-700"><i class="fa-solid fa-book-open-reader w-5 text-center"></i><span>Library</span></button>
+                <button data-section="fees" class="nav-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 text-gray-700"><i class="fa-solid fa-indian-rupee-sign w-5 text-center"></i><span>Fees</span></button>
+                <button data-section="settings" class="nav-btn w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 text-gray-700"><i class="fa-solid fa-gear w-5 text-center"></i><span>Settings</span></button>
+            </nav>
+            <div class="px-4 py-3 border-t border-gray-200 text-[11px] text-gray-500"><p class="font-medium mb-1">Firebase Realtime</p><p>Connected & Auto-sync enabled</p></div>
+        </aside>
+
+        <div class="flex-1 flex flex-col md:pl-0">
+            <!-- Header -->
+            <header class="bg-white border-b border-gray-200 md:sticky md:top-0 z-20">
+                <div class="flex items-center justify-between px-4 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xl font-bold overflow-hidden"><img id="headerLogo" src="" class="h-full w-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('headerLogoFallback').classList.remove('hidden');" /><span id="headerLogoFallback" class="flex items-center justify-center h-full w-full">SM</span></div>
+                        <div><h1 id="libraryNameHeader" class="text-sm font-semibold text-gray-800">Loading...</h1><p class="text-[10px] text-gray-500">Support No.+918809474959</p></div>
+                    </div>
+                    <div class="flex items-center gap-2 relative cursor-pointer" id="userQRContainer">
+                        <div class="qr-square" id="qrSquare" title="Payment QR"><img id="qrCodeImage" src="" class="hidden w-full h-full object-cover" alt="QR" /><i id="qrCodeIcon" class="fa-solid fa-qrcode"></i></div>
+                        <div class="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 overflow-hidden"><img id="userAvatarHeader" src="" class="h-full w-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('userAvatarFallback').classList.remove('hidden');" /><span id="userAvatarFallback" class="flex items-center justify-center h-full w-full text-xs font-medium">AU</span></div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end px-4 pb-2">
+                    <div class="flex items-center bg-gray-100 px-2 py-1 rounded-xl text-xs w-full max-w-xs"><i class="fa-solid fa-magnifying-glass text-gray-400 mr-1"></i><input id="globalSearch" type="text" placeholder="Search student..." class="bg-transparent outline-none w-full" /></div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-y-auto pb-20 md:pb-4 px-3 sm:px-4 pt-3 space-y-4">
+                <!-- Dashboard section -->
+                <section id="section-dashboard" class="space-y-4">
+                    <div class="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white p-4 sm:p-5 shadow-lg relative overflow-hidden">
+                        <div class="relative z-10 flex flex-col sm:flex-row items-center gap-4">
+                            <div class="flex-1 text-center sm:text-left"><p class="text-xs text-slate-300">Monthly Fee Overview</p><p id="heroMainAmount" class="mt-1 text-3xl sm:text-4xl font-semibold tracking-tight">₹0</p><p id="heroMainSubtitle" class="mt-1 text-[11px] text-slate-400">Keep collecting fees regularly.</p></div>
+                            <div class="flex items-center justify-center"><div class="relative w-32 h-32 sm:w-36 sm:h-36"><canvas id="feeCollectionChart"></canvas><div class="absolute inset-0 flex flex-col items-center justify-center"><p id="heroPercent" class="text-lg font-semibold">0%</p><p class="text-[10px] text-slate-400">Collected</p></div></div></div>
+                            <div class="flex sm:flex-col gap-4 sm:gap-3 justify-center">
+                                <div class="flex flex-col items-center"><div class="relative w-14 h-14"><canvas id="paidMiniChart"></canvas><span id="paidMiniPercent" class="absolute inset-0 flex items-center justify-center text-[10px] font-semibold"></span></div><p class="mt-1 text-[11px] text-slate-200">Paid</p></div>
+                                <div class="flex flex-col items-center"><div class="relative w-14 h-14"><canvas id="partialMiniChart"></canvas><span id="partialMiniPercent" class="absolute inset-0 flex items-center justify-center text-[10px] font-semibold"></span></div><p class="mt-1 text-[11px] text-slate-200">Partial</p></div>
+                                <div class="flex flex-col items-center"><div class="relative w-14 h-14"><canvas id="dueMiniChart"></canvas><span id="dueMiniPercent" class="absolute inset-0 flex items-center justify-center text-[10px] font-semibold"></span></div><p class="mt-1 text-[11px] text-slate-200">Due</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white p-3 shadow-sm border border-indigo-400/40 flex items-center justify-between"><div><p class="text-[11px] text-indigo-100">Total Students</p><p id="cardTotalStudents" class="mt-1 text-xl font-semibold">0</p></div><div class="h-10 w-10"><canvas id="cardTotalPie"></canvas></div></div>
+                        <div class="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white p-3 shadow-sm border border-emerald-400/40 flex items-center justify-between"><div><p class="text-[11px] text-emerald-100 flex items-center gap-1">Paid <span class="px-1 py-0.5 rounded-full bg-white/20 text-[9px]">Fees</span></p><p id="cardPaidCount" class="mt-1 text-xl font-semibold">0</p></div><div class="h-10 w-10"><canvas id="cardPaidPie"></canvas></div></div>
+                        <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm border border-amber-400/40 flex items-center justify-between"><div><p class="text-[11px] text-amber-100">Partial</p><p id="cardPartialCount" class="mt-1 text-xl font-semibold">0</p></div><div class="h-10 w-10"><canvas id="cardPartialPie"></canvas></div></div>
+                        <div class="rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 text-white p-3 shadow-sm border border-rose-400/40 flex items-center justify-between"><div><p class="text-[11px] text-rose-100">Due</p><p id="cardDueCount" class="mt-1 text-xl font-semibold">0</p></div><div class="h-10 w-10"><canvas id="cardDuePie"></canvas></div></div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+                            <div class="flex items-center justify-between mb-3"><p class="text-sm font-semibold text-gray-800">📊 Monthly Collection</p>
+                                <div class="flex items-center gap-2"><select id="yearSelector" class="text-xs px-2 py-1 rounded-lg border border-gray-200 bg-gray-50 outline-none font-medium"></select><button id="toggleBalanceVisibility" class="text-xs text-indigo-600 font-medium bg-indigo-50 px-3 py-1 rounded-lg hover:bg-indigo-100 transition-colors">Hide</button></div>
+                            </div>
+                            <div class="bg-gradient-to-br from-gray-50 to-white rounded-xl p-4 border border-gray-100"><div class="h-48"><canvas id="monthlyCollectionChart"></canvas></div></div>
+                            <div id="collectionText" class="mt-3 text-center"></div>
+                        </div>
+                        <div class="grid gap-3">
+                            <div class="rounded-2xl bg-white p-4 shadow-sm border border-gray-100"><p class="text-xs font-medium mb-2">Shift Distribution (All Assignments)</p><div id="shiftDistribution" class="grid grid-cols-2 gap-2 text-[11px]"></div></div>
+                            <div class="rounded-2xl bg-white p-4 shadow-sm border border-gray-100"><p class="text-xs font-medium mb-2">Library Sets Usage (All Assignments)</p><div id="libraryUsage" class="grid grid-cols-2 gap-2 text-[11px]"></div></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STUDENTS SECTION -->
+                <section id="section-students" class="hidden space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h3 class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-user-graduate text-xs"></i> Students</h3>
+                        <div class="flex items-center gap-2"><button id="btnNewStudent" class="px-3 py-1 rounded-xl bg-indigo-600 text-white text-xs flex items-center gap-1"><i class="fa-solid fa-plus text-[10px]"></i> Add</button>
+                            <div class="relative inline-block text-left"><button id="smartFilterBtn" class="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-sm flex items-center gap-2"><i class="fa-solid fa-filter text-xs"></i> Filters</button>
+                                <div id="smartFilterPanel" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-lg border border-gray-200 p-3 z-30">
+                                    <div class="flex items-center justify-between mb-2"><h4 class="text-[13px] font-semibold">Filters</h4><button id="smartFilterClose" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button></div>
+                                    <label class="block text-[11px] text-gray-600 mb-1">Search</label><input id="filterSearch" type="text" placeholder="Name or Mobile Number" class="w-full mb-3 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm" />
+                                    <label class="block text-[11px] text-gray-600 mb-1">Filter by Shift</label><select id="filterShift" class="w-full px-3 py-2 mb-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm"><option value="">All Shifts</option></select>
+                                    <label class="block text-[11px] text-gray-600 mb-1">Filter by Set</label><select id="filterSet" class="w-full px-3 py-2 mb-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm"><option value="">All Sets</option></select>
+                                    <label class="block text-[11px] text-gray-600 mb-1">Filter by Fee Status</label><select id="filterFee" class="w-full px-3 py-2 mb-3 rounded-xl border border-gray-200 bg-gray-50 outline-none text-sm"><option value="">All Status</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="due">Due</option></select>
+                                    <div class="flex gap-2"><button id="btnApplyFilters" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm w-full">Apply</button><button id="btnResetFilters" class="px-3 py-2 rounded-xl bg-gray-100 text-sm w-full">Reset</button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Form Modal -->
+                    <div id="studentFormModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-40 flex items-center justify-center p-4">
+                        <div class="w-full max-w-3xl grid md:grid-cols-3 gap-3 rounded-2xl bg-white p-3 border border-gray-100 text-xs"><input type="hidden" id="studentId" />
+                            <div class="space-y-1"><label class="block text-[11px]">Name</label><input required id="studentName" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" /></div>
+                            <div class="space-y-1"><label class="block text-[11px]">Mobile</label><input required id="studentMobile" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" /></div>
+                            <div class="space-y-1"><label class="block text-[11px]">Aadhar</label><input id="studentAadhar" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" /></div>
+                            <div class="space-y-1"><label class="block text-[11px]">Admission Date</label><input type="date" id="studentAdmission" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" /></div>
+                            <div class="space-y-1"><label class="block text-[11px]">Initial Fee Status</label><select id="studentFeeStatus" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none"><option value="paid">Paid</option><option value="partial">Partial</option><option value="due">Due</option></select></div>
+                            <div class="space-y-1"><label class="block text-[11px]">Monthly Fee (₹)</label><input id="studentMonthlyFee" type="number" min="0" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="600" /></div>
+                            <div class="space-y-1">
+                                <label class="block text-[11px]">Profile Photo (Max 10KB)</label>
+                                <img id="avatarPreview" class="h-14 w-14 rounded-full object-cover border border-gray-300 mb-2" src="https://via.placeholder.com/80?text=Photo" />
+                                <div class="flex flex-wrap gap-2"><label class="flex items-center gap-1 px-2 py-1 rounded-xl border border-gray-200 bg-gray-50 text-[11px] cursor-pointer"><i class="fa-regular fa-image text-xs"></i><span>Upload</span><input type="file" id="studentAvatarUpload" accept="image/*" class="hidden" /></label><label class="flex items-center gap-1 px-2 py-1 rounded-xl border border-gray-200 bg-gray-50 text-[11px] cursor-pointer"><i class="fa-solid fa-camera text-xs"></i><span>Camera</span><input type="file" id="studentAvatarCamera" accept="image/*" capture="environment" class="hidden" /></label><button id="btnDeleteStudentAvatar" type="button" class="px-2 py-1 rounded-xl bg-rose-50 text-rose-600 text-[11px] border border-rose-100 flex items-center gap-1"><i class="fa-regular fa-trash-can"></i> Delete</button></div>
+                                <input id="studentAvatar" type="hidden" />
+                            </div>
+                            <div class="space-y-1 md:col-span-3"><label class="block text-[11px]">Shifts & Library Sets</label>
+                                <div id="assignmentList" class="space-y-2"></div><button type="button" id="btnAddAssignment" class="mt-1 px-2 py-1 rounded-lg bg-gray-100 text-[11px]">+ Add Shift & Set</button>
+                            </div>
+                            <div class="flex items-end gap-2 col-span-full justify-end"><button type="button" id="studentFormCancel" class="px-3 py-1.5 rounded-xl bg-gray-100 text-xs hover:bg-gray-200 transition-colors">Cancel</button><button type="button" id="saveStudentBtn" class="px-4 py-1.5 rounded-xl bg-indigo-600 text-white text-xs hover:bg-indigo-700 transition-colors flex items-center gap-2"><i class="fa-solid fa-save text-xs"></i> Save Student</button></div>
+                        </div>
+                    </div>
+
+                    <div id="studentCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                </section>
+
+                <!-- LIBRARY SECTION -->
+                <section id="section-library" class="hidden space-y-3">
+                    <div class="flex items-center justify-between gap-2"><h3 class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-book-open-reader text-xs"></i> Library Management</h3></div>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 text-xs space-y-2 md:col-span-2">
+                            <div class="flex items-center justify-between"><p class="font-medium">Set Availability by Shift</p>
+                                <div class="flex items-center gap-2 text-[10px] text-gray-500"><span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-transparent border border-emerald-500"></span> Free</span><span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-rose-500"></span> Full</span><span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-purple-500"></span> SNA</span></div>
+                            </div>
+                            <div id="setAvailabilityMatrix" class="mt-1 space-y-2 text-[10px]"></div>
+                            <p class="text-[10px] text-gray-500 mt-1">Har shift ke card me sets numeric box ke form me hain; red filled = Full, green border = Free, purple = SNA (Set Not Allotted).</p>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 text-xs space-y-2">
+                            <div class="flex items-center justify-between"><p class="font-medium">Shift Capacity</p></div>
+                            <div id="libraryShiftsList" class="space-y-1"></div>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 text-xs space-y-2">
+                            <div class="flex items-center justify-between"><p class="font-medium">Sets Overview</p><button id="btnCustomizeSets" class="text-[11px] text-indigo-600">Customize</button></div>
+                            <div id="librarySetsList" class="grid grid-cols-2 gap-2"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FEES SECTION -->
+                <section id="section-fees" class="hidden space-y-3">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <h3 class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-indian-rupee-sign text-xs"></i> Fee Management</h3>
+                        <div class="flex items-center gap-2 text-xs"><button id="btnRefreshFeesManual" class="px-3 py-1 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center gap-1"><i class="fa-solid fa-rotate-right text-[10px]"></i> Refresh Fees (Due Date)</button><button id="btnWhatsAppReminders" class="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100">Send WhatsApp Reminders</button></div>
+                    </div>
+                    <div id="feesListContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </section>
+
+                <!-- SETTINGS SECTION -->
+                <section id="section-settings" class="hidden space-y-3 text-xs">
+                    <h3 class="text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-gear text-xs"></i> Settings & Integrations</h3>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1 flex items-center gap-1"><i class="fa-brands fa-google-drive text-sm text-indigo-600"></i> Firebase Realtime</p><p class="text-[11px] text-gray-500">Connected to Firebase. All changes auto-sync across devices.</p>
+                            <div class="mt-2 p-2 bg-emerald-50 text-emerald-700 rounded-xl text-[11px] flex items-center gap-2"><i class="fa-solid fa-circle-check"></i> Live sync enabled</div>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1">Cloud & Backup</p><p class="text-[11px] text-gray-500">Data is automatically backed up in Firebase Realtime Database.</p><button id="btnBackupDrive" class="mt-2 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs flex items-center gap-2"><i class="fa-brands fa-google-drive text-sm"></i> Export to Google Drive</button></div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2">
+                            <p class="font-medium text-xs mb-1">Header Customization</p>
+                            <div class="space-y-2 text-[11px]">
+                                <div><label class="block mb-0.5">Owner / Library Name</label><input id="ownerNameInput" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="Enter library name" /></div>
+                                <div><label class="block mb-0.5">Library Address</label><input id="libraryAddressInput" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="Address line" /></div>
+                                <div><label class="block mb-0.5">Phone</label><input id="libraryPhoneInput" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="1234567890" /></div>
+                                <div><label class="block mb-0.5">Email</label><input id="libraryEmailInput" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="library@example.com" /></div>
+                                <div><label class="block mb-0.5">Logo Upload</label>
+                                    <div class="w-full h-16 rounded-xl border border-dashed border-gray-300 overflow-hidden mb-2 flex items-center justify-center bg-gray-50"><img id="headerLogoPreview" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('headerLogoPlaceholder').classList.remove('hidden');" /><span id="headerLogoPlaceholder" class="text-[10px] text-gray-400">No logo selected</span></div>
+                                    <div class="flex flex-wrap gap-2"><label class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-[11px] cursor-pointer"><i class="fa-regular fa-image text-xs"></i><span>Upload Logo</span><input type="file" id="logoUploadInput" accept="image/*" class="hidden" /></label><button id="btnClearLogo" type="button" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] border border-rose-100"><i class="fa-solid fa-trash-can text-[11px] mr-1"></i> Remove Logo</button></div>
+                                    <input id="headerLogoHidden" type="hidden" />
+                                </div>
+                                <div class="border-t pt-2 mt-2"><label class="block mb-0.5 font-medium">Static QR Code (optional)</label>
+                                    <div class="flex items-center gap-3"><div class="qr-square w-14 h-14 border-2"><img id="qrPreviewImage" src="" class="hidden w-full h-full object-cover" /><i id="qrPreviewIcon" class="fa-solid fa-qrcode text-2xl text-gray-400"></i></div>
+                                        <div class="flex-1 space-y-2"><label class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-[11px] cursor-pointer"><i class="fa-regular fa-image"></i><span>Upload QR</span><input type="file" id="qrUploadInput" accept="image/*" class="hidden" /></label><button id="btnRemoveQR" type="button" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] border border-rose-100"><i class="fa-solid fa-trash-can"></i> Remove QR</button></div>
+                                    </div>
+                                    <input id="qrHidden" type="hidden" />
+                                    <p class="text-gray-400 mt-1 text-[10px]">Static QR (for invoice/display). For dynamic UPI, use below.</p>
+                                </div>
+                            </div><button id="btnSaveHeader" class="mt-2 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs">Save Header</button>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1">Library Shifts</p><p class="text-[11px] text-gray-500">Har line me ek shift timing likhiye (e.g. <b>6AM-10AM</b>, <b>10AM-2PM</b>).</p><textarea id="shiftLinesInput" rows="4" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none"></textarea><button id="btnSaveShifts" class="mt-2 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs">Save Shifts</button></div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1">📱 Dynamic UPI Payment (QR on the fly)</p>
+                            <div class="space-y-2"><label class="block text-[11px] font-medium">Library Owner UPI ID</label><input type="text" id="upiIdInput" class="w-full px-3 py-2 rounded-xl border bg-gray-50 border-gray-200 outline-none text-sm" placeholder="e.g., library@okhdfcbank or 9876543210@paytm" /><p class="text-[10px] text-gray-400">Enter your UPI ID. During UPI payment, QR will be generated dynamically with amount.</p><button id="btnSaveUpiId" class="mt-1 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs">Save UPI ID</button></div>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1">Import / Export</p>
+                            <div class="flex flex-wrap gap-2"><button id="btnExportJSON" class="px-3 py-1.5 rounded-xl bg-gray-100 text-xs">Export JSON</button><label class="px-3 py-1.5 rounded-xl bg-gray-100 text-xs cursor-pointer">Import JSON<input id="importJSONInput" type="file" accept="application/json" class="hidden" /></label></div>
+                        </div>
+                        <div class="rounded-2xl bg-white p-3 border border-gray-100 space-y-2"><p class="font-medium text-xs mb-1">User Profile</p>
+                            <div class="space-y-2">
+                                <div><label class="block text-[11px] mb-1">User Name</label><input id="userNameInput" class="w-full px-2 py-1 rounded-xl border bg-gray-50 border-gray-200 outline-none" placeholder="Enter your name" value="Admin User" /></div>
+                                <div><label class="block text-[11px] mb-1">User Avatar</label>
+                                    <div class="flex items-center gap-3"><div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden"><img id="userAvatarPreview" class="h-full w-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('userAvatarPreviewFallback').classList.remove('hidden');" /><span id="userAvatarPreviewFallback" class="flex items-center justify-center h-full w-full text-xs">AU</span></div><label class="px-3 py-1.5 rounded-xl bg-gray-100 text-[11px] cursor-pointer">Upload Avatar<input type="file" id="userAvatarUpload" accept="image/*" class="hidden" /></label></div>
+                                    <input id="userAvatarHidden" type="hidden" />
+                                </div>
+                            </div><button id="btnSaveUserProfile" class="mt-2 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs">Save User Profile</button>
+                        </div>
+
+                        <!-- Install App Card -->
+                        <div class="rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 p-4 border border-indigo-100 md:col-span-2">
+                            <div class="flex items-center gap-3 flex-wrap justify-between">
+                                <div class="flex items-center gap-2"><i class="fa-solid fa-download text-indigo-600 text-xl"></i>
+                                    <div><p class="font-semibold text-sm text-gray-800">Install App</p><p class="text-[11px] text-gray-500">Add this app to your home screen for easy access</p></div>
+                                </div>
+                                <button id="installAppBtnSettings" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-medium shadow-md hover:bg-indigo-700 transition flex items-center gap-2"><i class="fa-solid fa-mobile-screen-button"></i> Install Now</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- MOBILE FOOTER NAV -->
+            <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.05)] z-30 mobile-bottom-nav">
+                <div class="flex items-center justify-around">
+                    <button data-section="dashboard" class="nav-btn-mobile flex-1 text-indigo-600 active"><i class="fa-solid fa-gauge-high"></i><span>Home</span></button>
+                    <button data-section="students" class="nav-btn-mobile flex-1"><i class="fa-solid fa-user-graduate"></i><span>Students</span></button>
+                    <button id="attendanceBtn" class="nav-btn-mobile flex-1"><i class="fa-solid fa-calendar-check"></i><span>Attendance</span></button>
+                    <button data-section="library" class="nav-btn-mobile flex-1"><i class="fa-solid fa-book-open-reader"></i><span>Library</span></button>
+                    <button data-section="fees" class="nav-btn-mobile flex-1"><i class="fa-solid fa-indian-rupee-sign"></i><span>Fees</span></button>
+                    <button data-section="settings" class="nav-btn-mobile flex-1"><i class="fa-solid fa-gear"></i><span>More</span></button>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        // ========== FIREBASE CONFIG ==========
+        const firebaseConfig = {
+            apiKey: "AIzaSyCKPxqUsdJDTtaKCWTZB6shqKXF43f3eBg",
+            authDomain: "student-management-syste-205c4.firebaseapp.com",
+            databaseURL: "https://student-management-syste-205c4-default-rtdb.firebaseio.com",
+            projectId: "student-management-syste-205c4",
+            storageBucket: "student-management-syste-205c4.firebasestorage.app",
+            messagingSenderId: "482114689921",
+            appId: "1:482114689921:web:e5187835b7c7f8de1c2680"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+
+        // ========== GLOBAL STATE ==========
+        let state = {
+            students: [],
+            fees: {},
+            library: { totalSets: 5, shifts: [{ id: '6-10', label: '6AM-10AM', capacity: 5 }, { id: '10-14',
+                    label: '10AM-2PM', capacity: 5 }, { id: '14-18', label: '2PM-6PM', capacity: 5 }, { id: '18-22',
+                    label: '6PM-10PM', capacity: 5 }] },
+            monthlyCollectionByYear: {},
+            header: { ownerName: "Library Name", logoUrl: "", userName: "Admin User", userAvatar: "", qrCodeUrl: "",
+                address: "", phone: "", email: "", upiId: "" },
+        };
+        let currentUser = null,
+            currentLibraryId = null,
+            databaseListeners = [],
+            pendingActionCallback = null,
+            currentPaymentStudent = null,
+            currentProfileStudent = null;
+        let feeCollectionChart, monthlyCollectionChart, paidMiniChart, partialMiniChart, dueMiniChart, cardTotalPieChart,
+            cardPaidPieChart, cardPartialPieChart, cardDuePieChart;
+        let balanceVisible = true;
+        let dailyResetTimeout = null;
+
+        // ========== IMAGE COMPRESSION ==========
+        async function compressToMaxSize(file, maxSizeKB = 10) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        let width = img.width,
+                            height = img.height;
+                        let quality = 0.7;
+                        let attempts = 0;
+                        const reduceDim = () => { width = Math.floor(width * 0.85);
+                            height = Math.floor(height * 0.85); if (width < 40) width = 40; if (height < 40)
+                                height = 40; };
+                        const compress = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+                            let base64 = canvas.toDataURL('image/jpeg', quality);
+                            let sizeKB = base64.length * 0.75 / 1024;
+                            if (sizeKB <= maxSizeKB) { resolve(base64); return true; }
+                            if (attempts >= 15) { reject(new Error(`Image too large after extreme compression (${Math.round(sizeKB)}KB)`));
+                                return false; }
+                            if (quality > 0.35) { quality -= 0.08;
+                                attempts++;
+                                compress(); } else { reduceDim();
+                                quality = 0.6;
+                                attempts++;
+                                compress(); }
+                        };
+                        compress();
+                    };
+                    img.onerror = () => reject(new Error("Image load error"));
+                };
+                reader.onerror = () => reject(new Error("File read error"));
+            });
+        }
+        async function imageToBase64(file) { return await compressToMaxSize(file, 10); }
+
+        // ========== CACHE ==========
+        function saveStateToCache() { if (!currentLibraryId) return; const cacheKey = `app_cache_${currentLibraryId}`;
+            const cacheData = { students: state.students.map(s => { const { avatar, ...rest } = s; return rest; }),
+                fees: state.fees, library: state.library, monthlyCollectionByYear: state.monthlyCollectionByYear,
+                header: { ownerName: state.header.ownerName, address: state.header.address, phone: state.header
+                        .phone, email: state.header.email, userName: state.header.userName, upiId: state.header
+                        .upiId }, timestamp: Date.now() }; localStorage.setItem(cacheKey, JSON.stringify(
+                cacheData)); }
+
+        function loadCacheForLibrary(libraryId) { const cacheKey = `app_cache_${libraryId}`; const cached = localStorage
+                .getItem(cacheKey); if (cached) { try { const data = JSON.parse(cached); state.students = data
+                    .students || [];
+                state.fees = data.fees || {};
+                state.library = data.library || { totalSets: 5, shifts: [{ id: '6-10', label: '6AM-10AM',
+                        capacity: 5 }, { id: '10-14', label: '10AM-2PM', capacity: 5 }, { id: '14-18',
+                        label: '2PM-6PM', capacity: 5 }, { id: '18-22', label: '6PM-10PM', capacity: 5 }] };
+                state.monthlyCollectionByYear = data.monthlyCollectionByYear || {};
+                state.header = { ...state.header, ownerName: data.header?.ownerName || "Library Name",
+                    address: data.header?.address || "", phone: data.header?.phone || "",
+                email: data.header?.email || "", userName: data.header?.userName || "Admin User",
+                    upiId: data.header?.upiId || "" }; return true; } catch (e) {} } return false; }
+
+        // ========== SUBSCRIPTION ==========
+        const RAZORPAY_KEY = "rzp_live_STi2dRevdvmOE5";
+        async function isSubscriptionActive() { if (!currentLibraryId) return false; const snap = await database.ref(
+                `libraries/${currentLibraryId}/subscription`).once('value'); const subData = snap.val(); let expiry =
+                null; if (subData && subData.expiryDate) expiry = new Date(subData.expiryDate); else { const local =
+                    localStorage.getItem(`subscription_expiry_${currentLibraryId}`); if (local) expiry = new Date(
+                    local); } const now = new Date(); return expiry && expiry > now; }
+
+        function showSubscriptionModal(featureName, callback) { const modal = document.getElementById(
+                'subscriptionModal'); if (!modal) return; document.getElementById('expiryMessage').innerHTML =
+                'Your subscription has ended'; document.getElementById('featureAccessMessage').innerHTML =
+                `You need an active subscription to use <strong>${featureName}</strong>. Pay just ₹1 to unlock <strong>ReadBench</strong> for 30 days.`;
+            pendingActionCallback = callback; modal.style.display = 'flex'; document.body.classList.add(
+                'modal-open'); }
+
+        function hideSubscriptionModal() { const modal = document.getElementById('subscriptionModal'); if (modal) modal
+                .style.display = 'none'; document.body.classList.remove('modal-open'); pendingActionCallback = null; }
+
+        async function updateSubscription(expiryDate) { if (!currentLibraryId) return; const expiryISO = expiryDate
+                .toISOString(); await database.ref(`libraries/${currentLibraryId}/subscription`).set({ expiryDate: expiryISO });
+            localStorage.setItem(`subscription_expiry_${currentLibraryId}`, expiryISO); }
+
+        function initiatePayment() { const options = { key: RAZORPAY_KEY, amount: 100, currency: 'INR',
+                name: 'ReadBench Subscription', description: '30 days access', image: 'https://readbench.xyz/favicon.ico',
+                handler: async function(response) { const expiry = new Date();
+                    expiry.setDate(expiry.getDate() + 30); await updateSubscription(expiry);
+                    hideSubscriptionModal();
+                    alert('✅ Payment successful! Subscription active for 30 days.'); if (pendingActionCallback) {
+                        pendingActionCallback();
+                        pendingActionCallback = null; } renderAll(); }, prefill: { email: currentUser?.email ||
+                        '' }, theme: { color: '#2563eb' }, modal: { ondismiss: function() {
+                        pendingActionCallback = null; } } };
+            const rzp = new Razorpay(options);
+            rzp.open(); }
+        document.addEventListener('DOMContentLoaded', () => { const payBtn = document.getElementById('payNowBtn'); if (
+                payBtn) payBtn.addEventListener('click', initiatePayment); });
+
+        // ========== AUTO MONTHLY FEE RESET ==========
+        function getNextDueDate(admissionDate, afterDate) {
+            const adm = new Date(admissionDate);
+            const after = new Date(afterDate);
+            let due = new Date(Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), adm.getUTCDate()));
+            if (due <= after) due.setUTCMonth(due.getUTCMonth() + 1);
+            return due;
+        }
+
+        function refreshFeesBasedOnAdmissionDate() {
+            if (!currentLibraryId) return false;
+            const today = new Date();
+            const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+            let changed = false;
+            state.students.forEach(student => {
+                const admissionDateStr = student.admissionDate;
+                if (!admissionDateStr) return;
+                const admissionDate = new Date(admissionDateStr);
+                if (isNaN(admissionDate.getTime())) return;
+                let feeData = state.fees[student.id];
+                if (!feeData) {
+                    feeData = { status: 'due', amount: 0, monthlyFee: 600, lastPaid: '',
+                        lastResetDate: admissionDateStr, months: {}, paymentHistory: [] };
+                    state.fees[student.id] = feeData;
+                }
+                let lastReset = feeData.lastResetDate ? new Date(feeData.lastResetDate) : admissionDate;
+                if (isNaN(lastReset.getTime())) lastReset = admissionDate;
+                const nextDue = getNextDueDate(admissionDate, lastReset);
+                if (todayUTC >= nextDue) {
+                    feeData.status = 'due';
+                    feeData.amount = 0;
+                    feeData.lastPaid = '';
+                    feeData.lastResetDate = todayUTC.toISOString().slice(0, 10);
+                    const monthKey = nextDue.toISOString().slice(0, 7);
+                    if (!feeData.months) feeData.months = {};
+                    feeData.months[monthKey] = 'due';
+                    changed = true;
+                }
+            });
+            if (changed) { saveFees();
+                console.log("✅ Auto monthly reset completed"); }
+            return changed;
+        }
+
+        function scheduleDailyFeeReset() {
+            if (dailyResetTimeout) clearTimeout(dailyResetTimeout);
+            const now = new Date();
+            const nextMidnight = new Date(now);
+            nextMidnight.setHours(24, 0, 0, 0);
+            const msUntilMidnight = nextMidnight - now;
+            dailyResetTimeout = setTimeout(() => {
+                const changed = refreshFeesBasedOnAdmissionDate();
+                if (changed) renderAll();
+                scheduleDailyFeeReset();
+            }, msUntilMidnight);
+        }
+
+        function manualFeeRefresh() {
+            const changed = refreshFeesBasedOnAdmissionDate();
+            if (changed) { renderAll();
+                alert('✅ Fee refresh complete.'); } else alert('ℹ️ No student fee needed reset today.');
+            return changed;
+        }
+
+        function showDailyRefreshPopupIfNeeded() {
+            if (!currentLibraryId) return;
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const storageKey = `daily_refresh_popup_${currentLibraryId}`;
+            if (localStorage.getItem(storageKey) === todayStr) return;
+            const modal = document.getElementById('dailyRefreshModal');
+            if (!modal) return;
+            modal.style.display = 'flex';
+            document.body.classList.add('modal-open');
+            const forceBtn = document.getElementById('dailyForceRefreshBtn');
+            if (!forceBtn) return;
+            const newBtn = forceBtn.cloneNode(true);
+            forceBtn.parentNode.replaceChild(newBtn, forceBtn);
+            newBtn.addEventListener('click', () => {
+                manualFeeRefresh();
+                localStorage.setItem(storageKey, todayStr);
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            });
+        }
+
+        // ========== DYNAMIC UPI QR GENERATION ==========
+        function generateUpiQr(amount) {
+            const upiId = state.header.upiId;
+            if (!upiId || upiId.trim() === "") return null;
+            const payeeName = encodeURIComponent(state.header.ownerName || "Library");
+            const amt = parseFloat(amount);
+            if (isNaN(amt) || amt <= 0) return null;
+            const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${payeeName}&am=${amt}&cu=INR`;
+            return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiUrl)}`;
+        }
+
+        function updateDynamicQr(amount) {
+            const qrImg = document.getElementById('dynamicQrImage');
+            const noUpiMsg = document.getElementById('noUpiIdMessage');
+            if (!qrImg || !noUpiMsg) return;
+            if (!state.header.upiId) {
+                qrImg.style.display = 'none';
+                noUpiMsg.style.display = 'block';
+                return;
+            }
+            const qrUrl = generateUpiQr(amount);
+            if (qrUrl) {
+                qrImg.src = qrUrl;
+                qrImg.style.display = 'block';
+                noUpiMsg.style.display = 'none';
+            } else {
+                qrImg.style.display = 'none';
+                noUpiMsg.style.display = 'block';
+            }
+        }
+
+        // ========== PAYMENT MODAL ==========
+        function openPaymentModal(student) {
+            currentPaymentStudent = student;
+            const modal = document.getElementById('paymentMethodModal');
+            document.getElementById('paymentStudentName').textContent = `Student: ${student.name}`;
+            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('selected'));
+            document.getElementById('cashAmountDiv').classList.remove('show');
+            document.getElementById('qrDisplayDiv').classList.remove('show');
+            document.getElementById('cashAmount').value = '';
+            document.getElementById('upiAmount').value = '';
+            updateDynamicQr('');
+            modal.style.display = 'flex';
+            document.querySelectorAll('.payment-option').forEach(opt => {
+                opt.onclick = () => {
+                    document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    const m = opt.dataset.method;
+                    document.getElementById('cashAmountDiv').classList.remove('show');
+                    document.getElementById('qrDisplayDiv').classList.remove('show');
+                    if (m === 'cash') document.getElementById('cashAmountDiv').classList.add('show');
+                    else if (m === 'upi') {
+                        document.getElementById('qrDisplayDiv').classList.add('show');
+                        const amtInput = document.getElementById('upiAmount');
+                        updateDynamicQr(amtInput.value);
+                    }
+                };
+            });
+            const upiAmountInput = document.getElementById('upiAmount');
+            const updateHandler = () => updateDynamicQr(upiAmountInput.value);
+            upiAmountInput.removeEventListener('input', updateHandler);
+            upiAmountInput.addEventListener('input', updateHandler);
+        }
+
+        function closePaymentModal() { document.getElementById('paymentMethodModal').style.display = 'none';
+            currentPaymentStudent = null; }
+
+        function confirmPayment() {
+            const selected = document.querySelector('.payment-option.selected');
+            if (!selected) { alert('⚠️ Select payment method'); return; }
+            const method = selected.dataset.method;
+            let amount = 0;
+            if (method === 'cash') { amount = parseFloat(document.getElementById('cashAmount').value); if (isNaN(
+                    amount) || amount <= 0) { alert('⚠️ Valid amount'); return; } } else if (method === 'upi') {
+                amount = parseFloat(document.getElementById('upiAmount').value); if (isNaN(amount) || amount <= 0) {
+                    alert('⚠️ Valid amount'); return; } }
+            if (!currentPaymentStudent) return;
+            const feeData = state.fees[currentPaymentStudent.id] || { monthlyFee: 600, amount: 0, status: 'due' };
+            const today = new Date();
+            const year = today.getFullYear().toString();
+            const month = today.getMonth();
+            const dateStr = today.toISOString().slice(0, 10);
+            if (!state.fees[currentPaymentStudent.id]) state.fees[currentPaymentStudent.id] = { status: 'due',
+                amount: 0, monthlyFee: 600, lastPaid: '', months: {}, paymentHistory: [] };
+            if (!state.fees[currentPaymentStudent.id].paymentHistory) state.fees[currentPaymentStudent.id]
+                .paymentHistory = [];
+            state.fees[currentPaymentStudent.id].paymentHistory.push({ date: dateStr, amount, method,
+                time: new Date().toLocaleTimeString() });
+            const newTotal = (state.fees[currentPaymentStudent.id].amount || 0) + amount;
+            state.fees[currentPaymentStudent.id].amount = newTotal;
+            state.fees[currentPaymentStudent.id].lastPaid = dateStr;
+            state.fees[currentPaymentStudent.id].lastPaymentMethod = method;
+            state.fees[currentPaymentStudent.id].status = newTotal >= feeData.monthlyFee ? 'paid' : (newTotal > 0 ?
+                'partial' : 'due');
+            if (!state.monthlyCollectionByYear[year]) state.monthlyCollectionByYear[year] = Array(12).fill(0);
+            state.monthlyCollectionByYear[year][month] += amount;
+            const monthKey = dateStr.slice(0, 7);
+            if (!state.fees[currentPaymentStudent.id].months) state.fees[currentPaymentStudent.id].months = {};
+            state.fees[currentPaymentStudent.id].months[monthKey] = state.fees[currentPaymentStudent.id].status;
+            saveFees();
+            saveMonthlyCollection();
+            alert(
+                `✅ Payment Confirmed!\nStudent: ${currentPaymentStudent.name}\nAmount: ₹${amount}\nMethod: ${method.toUpperCase()}\nDate: ${dateStr}\nTotal Paid: ₹${state.fees[currentPaymentStudent.id].amount}/${feeData.monthlyFee}`
+                );
+            closePaymentModal();
+            renderAll();
+        }
+
+        // ========== INVOICE FUNCTIONS ==========
+        function generateInvoice(student) { const fee = state.fees[student.id] || { monthlyFee: 600, amount: 0,
+                paymentHistory: [], status: 'due' }; const totalPaid = fee.amount || 0; const totalDue = fee
+                .monthlyFee - totalPaid; const libName = state.header.ownerName || 'Library'; const addr = state
+                .header.address || ''; const phone = state.header.phone || ''; const email = state.header.email ||
+                ''; const qrUrl = state.header.qrCodeUrl || ''; const today = new Date(); const receiptNo =
+                `REC-${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}-${student.id.slice(-4)}`;
+            let paymentRows = '';
+            (fee.paymentHistory || []).forEach(p => { paymentRows +=
+                    `<tr><td class="border p-1">${p.date}</td><td class="border p-1">${p.method.toUpperCase()} payment</td><td class="border p-1">₹${p.amount}</td></tr>`;
+                }); if (!paymentRows) paymentRows =
+                `<tr><td colspan="3" class="text-center text-gray-400">No payments recorded</td>`; const qrSection =
+                qrUrl ?
+                `<div class="qr-section"><p class="text-xs text-gray-600 mb-1">Scan to pay</p><img src="${qrUrl}" alt="QR" style="max-width:100px;" class="mx-auto" /></div>` :
+                '<div class="qr-section text-center text-gray-400 text-xs">No QR code uploaded</div>';
+            const content =
+                `<div class="receipt-header"><h2 class="receipt-title">${libName}</h2><p class="text-xs text-gray-500">${addr}</p><p class="text-xs text-gray-500">📞 ${phone} ✉️ ${email}</p></div><div class="receipt-details"><span><strong>Receipt No:</strong> ${receiptNo}</span><span><strong>Date:</strong> ${today.toLocaleDateString('en-IN')}</span></div><div class="student-info"><p><strong>Member:</strong> ${student.name}</p><p><strong>Mobile:</strong> ${student.mobile||'-'}</p><p><strong>Seat:</strong> ${getPrimarySeat(student)||'-'}</p></div><table class="payment-table"><thead><tr><th class="border p-1">Date</th><th class="border p-1">Description</th><th class="border p-1">Amount</th></tr></thead><tbody>${paymentRows}</tbody></table><div class="totals"><p>Total Paid: ₹${totalPaid}</p><p>Total Due: ₹${totalDue}</p></div>${qrSection}`;
+            document.getElementById('invoiceContent').innerHTML = content;
+            document.getElementById('invoiceModal').style.display = 'flex';
+            const headerDiv = document.querySelector('#invoiceModal .invoice-detail-header');
+            if (headerDiv && !headerDiv.querySelector('.pdf-save-btn')) { const pdfBtn = document.createElement(
+                    'button');
+                pdfBtn.className = 'pdf-save-btn';
+                pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Save as PDF';
+                pdfBtn.onclick = () => saveInvoiceAsPDF();
+                headerDiv.appendChild(pdfBtn); } }
+
+        function saveInvoiceAsPDF() { const el = document.getElementById('invoiceContent'); if (!el) return; html2pdf()
+                .set({ margin: [0.5, 0.5, 0.5, 0.5], filename: `Invoice_${new Date().toISOString().slice(0,19)}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } }).from(el).save(); }
+
+        function closeInvoiceModal() { document.getElementById('invoiceModal').style.display = 'none'; }
+
+        function sendProfileViaWhatsApp() { if (!currentProfileStudent) return; const s = currentProfileStudent; const
+                fee = state.fees[s.id] || { monthlyFee: 600, amount: 0, status: 'due', lastPaid: '',
+                    lastPaymentMethod: '-' }; const dueAmount = Math.max((fee.monthlyFee || 600) - (fee.amount || 0),
+                0); const assign = (s.assignments || []).map(a =>
+                    `${formatShiftLabel(a.shift)} (${a.set==='SNA'?'SNA':'Set '+a.set})`).join(', ') || 'None';
+            let msg =
+                `📚 *Student Profile Card* 📚\n\n*${state.header.ownerName||'Library'}*\n━━━━━━━━━━━━━━━━━━━━━\n*Name:* ${s.name}\n*Mobile:* ${s.mobile||'Not provided'}\n*Aadhar:* ${s.aadhar||'Not provided'}\n*Admission:* ${s.admissionDate||'Not provided'}\n*Seat:* ${getPrimarySeat(s)||'Not assigned'}\n*Shift & Set:* ${assign}\n━━━━━━━━━━━━━━━━━━━━━\n💰 *Fee Details* 💰\nMonthly Fee: ₹${fee.monthlyFee}\nPaid Amount: ₹${fee.amount||0}\nDue Amount: ₹${dueAmount}\nStatus: ${fee.status.toUpperCase()}\nLast Paid: ${fee.lastPaid||'Never'}\nLast Payment Method: ${fee.lastPaymentMethod?fee.lastPaymentMethod.toUpperCase():'-'}\n━━━━━━━━━━━━━━━━━━━━━\n📅 *Monthly Fee Status (This Year)*\n`;
+            const now = new Date();
+            const year = now.getFullYear();
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthsData = fee.months || {};
+            let line = '';
+            for (let i = 0; i < 12; i++) { const key =
+                    `${year}-${String(i+1).padStart(2,'0')}`; const st = monthsData[key] || 'due'; const emoji = st ===
+                    'paid' ? '🟢' : (st === 'partial' ? '🟡' : '🔴');
+                line += `${emoji} ${months[i]} `; if ((i + 1) % 4 === 0) line += '\n'; }
+            msg += line +
+                `\n━━━━━━━━━━━━━━━━━━━━━\n📞 For any queries, contact library desk.\nThank you! 🙏`;
+            const phone = (s.mobile || '').replace(/\D/g, '');
+            if (phone) window.open(
+                    `https://wa.me/${phone.length===10?'91'+phone:phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            else alert('⚠️ Mobile number missing'); }
+
+        // ========== AUTHENTICATION ==========
+        const loginModal = document.getElementById('loginModal'),
+            registerModal = document.getElementById('registerModal'),
+            appElement = document.getElementById('app'),
+            logoutDropdown = document.getElementById('logoutDropdown');
+        loginModal.classList.remove('hidden');
+        document.getElementById('loginBtn').addEventListener('click', async () => { const email = document
+                .getElementById('loginEmail').value,
+                pwd = document.getElementById('loginPassword').value; document.getElementById('loginError')
+                .classList.add('hidden'); try { await auth.signInWithEmailAndPassword(email, pwd); } catch (e) {
+                document.getElementById('loginError').textContent = e.message; document.getElementById('loginError')
+                    .classList.remove('hidden'); } });
+        document.getElementById('registerBtn').addEventListener('click', () => { loginModal.classList.add('hidden');
+            registerModal.classList.remove('hidden'); document.getElementById('registerError').classList.add(
+                'hidden'); });
+        document.getElementById('registerBackBtn').addEventListener('click', () => { registerModal.classList.add(
+                'hidden');
+            loginModal.classList.remove('hidden'); });
+        document.getElementById('registerSubmitBtn').addEventListener('click', async () => { const libName = document
+                .getElementById('registerLibraryName').value,
+                owner = document.getElementById('registerOwnerName').value,
+                email = document.getElementById('registerEmail').value,
+                pwd = document.getElementById('registerPassword').value; const errDiv = document.getElementById(
+                'registerError'); errDiv.classList.add('hidden'); if (!libName || !owner || !email || !pwd) {
+                errDiv.textContent = 'All fields required';
+                errDiv.classList.remove('hidden'); return; } if (pwd.length < 6) { errDiv.textContent =
+                    'Password >=6 chars';
+                errDiv.classList.remove('hidden'); return; } try { const uc = await auth.createUserWithEmailAndPassword(
+                    email, pwd); const uid = uc.user.uid; await database.ref(`libraries/${uid}`).set({ header: {
+                            ownerName: libName, logoUrl: "", userName: owner, userAvatar: "",
+                        qrCodeUrl: "", address: "", phone: "", email: "", upiId: "" },
+                    library: state.library, students: [], fees: {}, monthlyCollectionByYear: {} });
+                registerModal.classList.add('hidden'); } catch (e) { errDiv.textContent = e.message;
+                errDiv.classList.remove('hidden'); } });
+        async function logout() { try { await auth.signOut();
+                logoutDropdown.classList.add('hidden'); } catch (e) {} }
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+        const userQR = document.getElementById('userQRContainer'); if (userQR) userQR.addEventListener('click', (e) => {
+                e.stopPropagation(); const rect = userQR.getBoundingClientRect();
+                logoutDropdown.style.top = (rect.bottom + 5) + 'px';
+                logoutDropdown.style.left = (rect.right - 150) + 'px';
+                logoutDropdown.classList.toggle('hidden'); });
+        document.addEventListener('click', (e) => { if (!e.target.closest('#userQRContainer') && !e.target.closest(
+                    '#logoutDropdown')) logoutDropdown.classList.add('hidden'); });
+
+        // ========== DATABASE FUNCTIONS ==========
+        async function loadLibraryData() { if (!currentLibraryId) return; try { const snap = await database.ref(
+                    `libraries/${currentLibraryId}`).once('value'); const data = snap.val(); if (data) { state = { ...
+                    state, ...data }; if (!state.header.qrCodeUrl) state.header.qrCodeUrl = "";
+                if (!state.header.address) state.header.address = "";
+                if (!state.header.phone) state.header.phone = "";
+                if (!state.header.email) state.header.email = "";
+                if (!state.header.upiId) state.header.upiId = ""; } else { await database.ref(
+                        `libraries/${currentLibraryId}`).set({ header: { ownerName: "Library Name",
+                            logoUrl: "", userName: "Admin User", userAvatar: "", qrCodeUrl: "",
+                        address: "", phone: "", email: "", upiId: "" }, library: state.library,
+                        students: [], fees: {}, monthlyCollectionByYear: {} }); }
+                saveStateToCache();
+                renderAll();
+                showDailyRefreshPopupIfNeeded(); } catch (e) { console.error(e); } }
+
+        function setupDatabaseListeners() { if (!currentLibraryId) return; const studentsRef = database.ref(
+                `libraries/${currentLibraryId}/students`); const sL = studentsRef.on('value', (snap) => { state
+                    .students = snap.val() || [];
+                saveStateToCache();
+                renderStudents();
+                renderDashboardCards();
+                renderDashboardCharts();
+                renderShiftAndLibrary();
+                renderFees(); });
+            databaseListeners.push(() => studentsRef.off('value', sL));
+            const feesRef = database.ref(`libraries/${currentLibraryId}/fees`);
+            const fL = feesRef.on('value', (snap) => { state.fees = snap.val() || {};
+                saveStateToCache();
+                renderFees();
+                renderDashboardCards();
+                renderDashboardCharts(); });
+            databaseListeners.push(() => feesRef.off('value', fL));
+            const libRef = database.ref(`libraries/${currentLibraryId}/library`);
+            const lL = libRef.on('value', (snap) => { if (snap.val()) { state.library = snap.val();
+                    saveStateToCache();
+                    renderShiftAndLibrary();
+                    populateShiftFilter();
+                    populateSetFilter(); } });
+            databaseListeners.push(() => libRef.off('value', lL));
+            const headRef = database.ref(`libraries/${currentLibraryId}/header`);
+            const hL = headRef.on('value', (snap) => { if (snap.val()) { state.header = snap.val();
+                    saveStateToCache();
+                    renderNewHeader(); } });
+            databaseListeners.push(() => headRef.off('value', hL));
+            const collRef = database.ref(`libraries/${currentLibraryId}/monthlyCollectionByYear`);
+            const cL = collRef.on('value', (snap) => { state.monthlyCollectionByYear = snap.val() || {};
+                saveStateToCache();
+                renderDashboardCharts(); });
+            databaseListeners.push(() => collRef.off('value', cL)); }
+
+        async function saveStudents() { if (currentLibraryId) await database.ref(
+                `libraries/${currentLibraryId}/students`).set(state.students);
+            saveStateToCache(); }
+
+        async function saveFees() { if (currentLibraryId) await database.ref(`libraries/${currentLibraryId}/fees`).set(
+                state.fees);
+            saveStateToCache(); }
+
+        async function saveLibrary() { if (currentLibraryId) await database.ref(
+                `libraries/${currentLibraryId}/library`).set(state.library);
+            saveStateToCache(); }
+
+        async function saveHeaderData() { if (currentLibraryId) await database.ref(
+                `libraries/${currentLibraryId}/header`).set(state.header);
+            saveStateToCache(); }
+
+        async function saveMonthlyCollection() { if (currentLibraryId) await database.ref(
+                `libraries/${currentLibraryId}/monthlyCollectionByYear`).set(state.monthlyCollectionByYear);
+            saveStateToCache(); }
+
+        function printProfileCard() { window.print(); }
+
+        // ========== RENDER HELPERS ==========
+        function renderNewHeader() {
+            document.getElementById('libraryNameHeader').innerText = state.header.ownerName || 'Library Name';
+            const logoImg = document.getElementById('headerLogo'),
+                logoFall = document.getElementById('headerLogoFallback');
+            if (state.header.logoUrl) { logoImg.src = state.header.logoUrl;
+                logoImg.classList.remove('hidden');
+                logoFall.classList.add('hidden'); } else { logoImg.classList.add('hidden');
+                logoFall.classList.remove('hidden'); }
+            const userAv = document.getElementById('userAvatarHeader'),
+                userFall = document.getElementById('userAvatarFallback');
+            if (state.header.userAvatar) { userAv.src = state.header.userAvatar;
+                userAv.classList.remove('hidden');
+                userFall.classList.add('hidden'); } else { userAv.classList.add('hidden');
+                userFall.classList.remove('hidden'); const name = state.header.userName || 'Admin User';
+                userFall.innerText = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() ||
+                'AU'; }
+            const qrImg = document.getElementById('qrCodeImage'),
+                qrIcon = document.getElementById('qrCodeIcon');
+            if (state.header.qrCodeUrl) { qrImg.src = state.header.qrCodeUrl;
+                qrImg.classList.remove('hidden');
+                qrIcon.classList.add('hidden'); } else { qrImg.classList.add('hidden');
+                qrIcon.classList.remove('hidden'); }
+            const logoPrev = document.getElementById('headerLogoPreview'),
+                logoPlace = document.getElementById('headerLogoPlaceholder'),
+                logoHidden = document.getElementById('headerLogoHidden');
+            if (state.header.logoUrl) { logoPrev.src = state.header.logoUrl;
+                logoPrev.classList.remove('hidden');
+                logoPlace.classList.add('hidden');
+                logoHidden.value = state.header.logoUrl; }
+            const qrPrev = document.getElementById('qrPreviewImage'),
+                qrPrevIcon = document.getElementById('qrPreviewIcon'),
+                qrHidden = document.getElementById('qrHidden');
+            if (state.header.qrCodeUrl) { qrPrev.src = state.header.qrCodeUrl;
+                qrPrev.classList.remove('hidden');
+                qrPrevIcon.classList.add('hidden');
+                qrHidden.value = state.header.qrCodeUrl; } else { qrPrev.classList.add('hidden');
+                qrPrevIcon.classList.remove('hidden');
+                qrHidden.value = ''; }
+            document.getElementById('ownerNameInput').value = state.header.ownerName;
+            document.getElementById('libraryAddressInput').value = state.header.address || '';
+            document.getElementById('libraryPhoneInput').value = state.header.phone || '';
+            document.getElementById('libraryEmailInput').value = state.header.email || '';
+            document.getElementById('userNameInput').value = state.header.userName;
+            document.getElementById('upiIdInput').value = state.header.upiId || '';
+        }
+        window.closeSetPopup = function() { document.getElementById('setPopupModal').classList.add('hidden'); }
+
+        function populateYearSelector() { const sel = document.getElementById('yearSelector'); if (!sel) return; const
+                curYear = new Date().getFullYear();
+            sel.innerHTML = '';
+            for (let y = 2020; y <= 2050; y++) { const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y; if (y === curYear) opt.selected = true;
+                sel.appendChild(opt); } }
+
+        function getMonthlyDataForYear(year) { if (!state.monthlyCollectionByYear[year]) state
+                .monthlyCollectionByYear[year] = Array(12).fill(0); return state.monthlyCollectionByYear[year]; }
+
+        function initNavigation() { document.querySelectorAll('.nav-btn[data-section]').forEach(btn => btn
+                .addEventListener('click', () => showSection(btn.dataset.section)));
+            document.querySelectorAll('.nav-btn-mobile').forEach(btn => { if (btn.id !== 'attendanceBtn') btn
+                    .addEventListener('click', () => { showSection(btn.dataset.section);
+                        document.querySelectorAll('.nav-btn-mobile').forEach(b => b.classList.remove(
+                        'active'));
+                        btn.classList.add('active'); }); });
+            showSection('dashboard'); }
+
+        function showSection(id) { ['dashboard', 'students', 'library', 'fees', 'settings'].forEach(s => { const el =
+                    document.getElementById(`section-${s}`); if (el) el.classList.toggle('hidden', s !== id); });
+            document.querySelectorAll('.nav-btn[data-section]').forEach(btn => { if (btn.dataset.section === id) btn
+                    .classList.add('text-indigo-600', 'bg-indigo-50');
+                else btn.classList.remove('text-indigo-600', 'bg-indigo-50'); }); }
+
+        function initFilters() { populateShiftFilter();
+            populateSetFilter(); const smartBtn = document.getElementById('smartFilterBtn'),
+                panel = document.getElementById('smartFilterPanel'),
+                closeBtn = document.getElementById('smartFilterClose'); if (smartBtn) smartBtn.addEventListener(
+                'click', (e) => { e.stopPropagation(); if (panel) panel.classList.toggle('hidden'); }); if (
+                closeBtn) closeBtn.addEventListener('click', () => { if (panel) panel.classList.add('hidden'); });
+            document.addEventListener('click', (e) => { if (!smartBtn?.contains(e.target) && !panel?.contains(e
+                    .target) && panel) panel.classList.add('hidden'); });
+            document.getElementById('btnApplyFilters')?.addEventListener('click', () => { if (panel) panel
+                    .classList.add('hidden');
+                applyFilters(); });
+            document.getElementById('btnResetFilters')?.addEventListener('click', () => { const search = document
+                    .getElementById('filterSearch'),
+                    shift = document.getElementById('filterShift'),
+                    set = document.getElementById('filterSet'),
+                    fee = document.getElementById('filterFee'); if (search) search.value = '';
+                if (shift) shift.value = '';
+                if (set) set.value = '';
+                if (fee) fee.value = '';
+                if (panel) panel.classList.add('hidden');
+                applyFilters(); });
+            const globalSearch = document.getElementById('globalSearch'); if (globalSearch) globalSearch
+                .addEventListener('input', (e) => { showSection('students'); const f = document.getElementById(
+                        'filterSearch'); if (f) f.value = e.target.value;
+                    applyFilters(); }); }
+
+        function populateShiftFilter() { const sel = document.getElementById('filterShift'); if (!sel) return; sel
+                .innerHTML = '<option value="">All Shifts</option>'; if (state.library && state.library.shifts) state
+                .library.shifts.forEach(sh => sel.appendChild(new Option(sh.label, sh.id))); }
+
+        function populateSetFilter() { const sel = document.getElementById('filterSet'); if (!sel) return; sel
+                .innerHTML = '<option value="">All Sets</option><option value="SNA">SNA (No Set)</option>'; if (state
+                .library && state.library.totalSets) for (let i = 1; i <= state.library.totalSets; i++) sel
+                .appendChild(new Option('Set ' + i, String(i))); }
+
+        function initProfileModal() { document.getElementById('closeProfileModal')?.addEventListener('click', () =>
+                document.getElementById('profileModal').classList.add('hidden'));
+            document.getElementById('profilePrintBtn')?.addEventListener('click', () => printProfileCard());
+            document.getElementById('profileWhatsAppBtn')?.addEventListener('click', () => guardAction(
+                "Share Profile", sendProfileViaWhatsApp));
+            document.getElementById('profileModal')?.addEventListener('click', (e) => { if (e.target.id ===
+                    'profileModal') document.getElementById('profileModal').classList.add('hidden'); }); }
+
+        function openProfileModalForStudent(s) { currentProfileStudent = s; const fee = state.fees[s.id] || { status: 'due',
+                amount: 0, monthlyFee: 600, lastPaid: '', months: {}, lastPaymentMethod: '-' };
+            const modal = document.getElementById('profileModal');
+            document.getElementById('profileName').innerText = s.name;
+            document.getElementById('profileMobile').innerText = s.mobile || '-';
+            document.getElementById('profileSeat').innerText = getPrimarySeat(s) ?? '-';
+            document.getElementById('profileAadhar').innerText = s.aadhar || '-';
+            document.getElementById('profileAdmission').innerText = s.admissionDate || '-';
+            const avatar = document.getElementById('profileAvatar'); if (s.avatar) avatar.src = s.avatar;
+            else avatar.src =
+                `https://ui-avatars.com/api/?background=6366F1&color=fff&size=128&name=${encodeURIComponent(s.name)}`;
+            document.getElementById('profileFeeStatus').innerText = fee.status.toUpperCase();
+            document.getElementById('profileFeeMonthly').innerText = '₹' + fee.monthlyFee;
+            document.getElementById('profileFeeAmount').innerText = '₹' + (fee.amount || 0);
+            document.getElementById('profileFeeLastPaid').innerText = fee.lastPaid || '-';
+            document.getElementById('profilePaymentMethod').innerText = fee.lastPaymentMethod ? fee
+                .lastPaymentMethod.toUpperCase() : '-';
+            document.getElementById('profileStatusDot').className = `status-dot ${fee.status}`;
+            const assignDiv = document.getElementById('profileAssignments'); if (assignDiv) { assignDiv.innerHTML =
+                    '';
+                (s.assignments || []).forEach(a => { assignDiv.innerHTML +=
+                        `<div class="flex justify-between bg-gray-50 px-2 py-1 rounded-lg"><span>${formatShiftLabel(a.shift)}</span><span>${a.set==='SNA'?'SNA (No Set)':'Set '+a.set}</span></div>`;
+                    }); }
+            const grid = document.getElementById('profileMonthGrid'); if (grid) { grid.innerHTML = '';
+                const now = new Date();
+                const year = now.getFullYear();
+                const curMonth = now.getMonth();
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthsData = fee.months || {};
+                for (let i = 0; i < 12; i++) { const key =
+                        `${year}-${String(i+1).padStart(2,'0')}`; const status = monthsData[key] || 'due';
+                    const div = document.createElement('div');
+                    div.className =
+                        `flex items-center justify-center h-7 rounded-lg text-[10px] ${status==='paid'?'bg-emerald-500 text-white':(status==='partial'?'bg-amber-400 text-white':'bg-gray-100 text-gray-600')} ${i===curMonth?' ring-2 ring-indigo-500':''}`;
+                    div.textContent = months[i];
+                    grid.appendChild(div); } }
+            const waBtn = document.getElementById('profileWhatsAppBtn'); if (waBtn) { if (s.mobile && s.mobile
+                    .trim() !== '') { waBtn.classList.remove('hidden');
+                    waBtn.classList.add('flex'); } else waBtn.classList.add('hidden'); }
+            modal.classList.remove('hidden'); }
+
+        // ========== DASHBOARD CHARTS & CARDS ==========
+        function renderDashboardCards() { let paid = 0,
+                partial = 0,
+                due = 0;
+            state.students.forEach(s => { const f = state.fees[s.id] || { status: 'due' }; if (f.status ===
+                    'paid') paid++;
+                else if (f.status === 'partial') partial++;
+                else due++; });
+            document.getElementById('cardTotalStudents').innerText = state.students.length;
+            document.getElementById('cardPaidCount').innerText = paid;
+            document.getElementById('cardPartialCount').innerText = partial;
+            document.getElementById('cardDueCount').innerText = due; }
+
+        function renderDashboardCharts() { let totalTarget = 0,
+                collected = 0;
+            state.students.forEach(s => { const f = state.fees[s.id] || { amount: 0, monthlyFee: 600 };
+                totalTarget += f.monthlyFee;
+                collected += f.amount; });
+            const percent = totalTarget > 0 ? Math.round((collected * 100) / totalTarget) : 0;
+            const heroAmt = document.getElementById('heroMainAmount'),
+                heroSub = document.getElementById('heroMainSubtitle'),
+                heroPerc = document.getElementById('heroPercent'); if (balanceVisible) { if (heroAmt) heroAmt
+                    .innerText = '₹' + collected.toLocaleString(); if (heroSub) heroSub.innerText =
+                    `of ₹${totalTarget.toLocaleString()} monthly target`; } else { if (heroAmt) heroAmt.innerText =
+                    percent + '%'; if (heroSub) heroSub.innerText = 'Collection progress'; } if (heroPerc) heroPerc
+                .innerText = percent + '%'; let paid = 0,
+                partial = 0,
+                due = 0;
+            state.students.forEach(s => { const f = state.fees[s.id] || { status: 'due' }; if (f.status ===
+                    'paid') paid++;
+                else if (f.status === 'partial') partial++;
+                else due++; });
+            const total = state.students.length || 1;
+            document.getElementById('paidMiniPercent').innerText = Math.round((paid * 100) / total) + '%';
+            document.getElementById('partialMiniPercent').innerText = Math.round((partial * 100) / total) + '%';
+            document.getElementById('dueMiniPercent').innerText = Math.round((due * 100) / total) + '%';
+            if (feeCollectionChart) feeCollectionChart.destroy();
+            if (paidMiniChart) paidMiniChart.destroy();
+            if (partialMiniChart) partialMiniChart.destroy();
+            if (dueMiniChart) dueMiniChart.destroy();
+            if (cardTotalPieChart) cardTotalPieChart.destroy();
+            if (cardPaidPieChart) cardPaidPieChart.destroy();
+            if (cardPartialPieChart) cardPartialPieChart.destroy();
+            if (cardDuePieChart) cardDuePieChart.destroy();
+            if (monthlyCollectionChart) monthlyCollectionChart.destroy();
+            feeCollectionChart = new Chart(document.getElementById('feeCollectionChart'), { type: 'doughnut',
+                data: { datasets: [{ data: [collected, Math.max(totalTarget - collected, 0)],
+                        backgroundColor: ['#22c55e', '#111827'] }] }, options: { cutout: '70%',
+                        plugins: { legend: { display: false } } } });
+            paidMiniChart = new Chart(document.getElementById('paidMiniChart'), { type: 'doughnut',
+                data: { datasets: [{ data: [paid, total - paid], backgroundColor: ['#22c55e',
+                            '#111827' ] }] }, options: { cutout: '70%', plugins: { legend: { display: false } } } });
+            partialMiniChart = new Chart(document.getElementById('partialMiniChart'), { type: 'doughnut',
+                data: { datasets: [{ data: [partial, total - partial], backgroundColor: ['#eab308',
+                            '#111827' ] }] }, options: { cutout: '70%', plugins: { legend: { display: false } } } });
+            dueMiniChart = new Chart(document.getElementById('dueMiniChart'), { type: 'doughnut',
+                data: { datasets: [{ data: [due, total - due], backgroundColor: ['#f97316',
+                            '#111827' ] }] }, options: { cutout: '70%', plugins: { legend: { display: false } } } });
+            const yearSel = document.getElementById('yearSelector'); const selYear = yearSel ? yearSel.value : new Date()
+                .getFullYear().toString(); const monthly = getMonthlyDataForYear(selYear); const yearTotal = monthly
+                .reduce((a, b) => a + b, 0); const annualTarget = 600 * state.students.length * 12; const yearPerc =
+                annualTarget > 0 ? Math.round((yearTotal * 100) / annualTarget) : 0; document.getElementById(
+                    'collectionText').innerHTML =
+                `<span class="text-sm font-semibold text-gray-800">₹${yearTotal.toLocaleString()}</span><span class="text-xs text-gray-500 mx-1">/</span><span class="text-sm font-medium text-gray-600">₹${annualTarget.toLocaleString()}</span><span class="text-xs text-gray-500 ml-2">(${yearPerc}% collected)</span>`;
+            monthlyCollectionChart = new Chart(document.getElementById('monthlyCollectionChart'), { type: 'bar',
+                data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct',
+                        'Nov', 'Dec' ], datasets: [{ label: `Collection (${selYear})`, data: monthly,
+                        backgroundColor: (ctx) => { const v = ctx.dataset.data[ctx.dataIndex]; if (v ===
+                                0) return 'rgba(209,213,219,0.3)'; if (v < 5000) return 'rgba(239,68,68,0.7)';
+                            if (v < 10000) return 'rgba(245,158,11,0.7)'; if (v < 15000) return 'rgba(16,185,129,0.7)';
+                            return 'rgba(99,102,241,0.7)'; }, borderColor: (ctx) => { const v = ctx
+                                .dataset.data[ctx.dataIndex]; if (v === 0) return 'rgb(156,163,175)'; if (
+                                v < 5000) return 'rgb(239,68,68)'; if (v < 10000) return 'rgb(245,158,11)';
+                            if (v < 15000) return 'rgb(16,185,129)'; return 'rgb(99,102,241)'; },
+                        borderWidth: 1, borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: 'white',
+                            bodyColor: 'white', padding: 10, cornerRadius: 8, callbacks: { title: (
+                                    ctx) => ctx[0].label + ' ' + selYear, label: (ctx) =>
+                                    'Collection: ₹' + ctx.raw.toLocaleString() } } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)',
+                                drawBorder: false }, ticks: { callback: (val) => '₹' + val,
+                                font: { size: 10 }, stepSize: 5000, max: Math.max(30000, Math
+                                    .ceil(Math.max(...monthly) / 5000) * 5000) } }, x: { grid: { display: false },
+                            ticks: { font: { size: 10, weight: '500' }, color: '#4B5563' } } } } });
+            cardTotalPieChart = new Chart(document.getElementById('cardTotalPie'), { type: 'doughnut',
+                data: { datasets: [{ data: [total, 0], backgroundColor: ['#ffffff',
+                            'rgba(255,255,255,0.2)' ] }] }, options: { cutout: '65%', plugins: { legend: { display: false } } } });
+            cardPaidPieChart = new Chart(document.getElementById('cardPaidPie'), { type: 'doughnut',
+                data: { datasets: [{ data: [paid, total - paid], backgroundColor: ['#bbf7d0',
+                            'rgba(255,255,255,0.2)' ] }] }, options: { cutout: '65%', plugins: { legend: { display: false } } } });
+            cardPartialPieChart = new Chart(document.getElementById('cardPartialPie'), { type: 'doughnut',
+                data: { datasets: [{ data: [partial, total - partial], backgroundColor: ['#fef3c7',
+                            'rgba(255,255,255,0.2)' ] }] }, options: { cutout: '65%', plugins: { legend: { display: false } } } });
+            cardDuePieChart = new Chart(document.getElementById('cardDuePie'), { type: 'doughnut',
+                data: { datasets: [{ data: [due, total - due], backgroundColor: ['#fee2e2',
+                            'rgba(255,255,255,0.2)' ] }] }, options: { cutout: '65%', plugins: { legend: { display: false } } } }); }
+
+        // ========== LIBRARY / SHIFT RENDERING ==========
+        function renderShiftAndLibrary() { populateShiftFilter();
+            populateSetFilter(); const shiftDiv = document.getElementById('shiftDistribution'),
+                usageDiv = document.getElementById('libraryUsage'),
+                matrixDiv = document.getElementById('setAvailabilityMatrix'),
+                shiftsList = document.getElementById('libraryShiftsList'),
+                setsList = document.getElementById('librarySetsList'); if (!shiftDiv || !usageDiv || !matrixDiv ||
+                !shiftsList || !setsList) return;
+            shiftDiv.innerHTML = '';
+            usageDiv.innerHTML = '';
+            matrixDiv.innerHTML = '';
+            shiftsList.innerHTML = '';
+            setsList.innerHTML = '';
+            const shiftCounts = {}; if (state.library && state.library.shifts) state.library.shifts.forEach(sh =>
+                shiftCounts[sh.id] = 0);
+            const setCounts = {}; if (state.library && state.library.totalSets) for (let i = 1; i <= state.library
+                    .totalSets; i++) setCounts[i] = 0; let snaCount = 0;
+            state.students.forEach(s => { (s.assignments || []).forEach(a => { if (shiftCounts[a.shift] != null)
+                        shiftCounts[a.shift]++;
+                    if (a.set === 'SNA') snaCount++;
+                    else if (a.set && setCounts[a.set] != null) setCounts[a.set]++; }); });
+            if (state.library && state.library.shifts) state.library.shifts.forEach(sh => { const used = shiftCounts[
+                    sh.id] || 0; const percent = Math.round((used * 100) / state.library.totalSets);
+                shiftDiv.innerHTML +=
+                    `<div class="rounded-xl border border-gray-100 p-2"><p class="font-medium text-[11px] mb-1">${sh.label}</p><div class="flex items-center justify-between text-[10px] mb-1"><span>${used} used, ${state.library.totalSets-used} remaining</span><span>${percent}%</span></div><div class="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden"><div class="h-1.5 ${percent>80?'bg-rose-500':percent>60?'bg-amber-500':'bg-emerald-500'}" style="width:${percent}%;"></div></div></div>`;
+                });
+            if (snaCount > 0) usageDiv.innerHTML +=
+                `<div class="rounded-xl border border-gray-100 p-2 bg-purple-50"><p class="font-medium text-[11px] mb-1 flex items-center gap-1"><span class="sna-badge text-[10px]">SNA</span></p><p class="text-[10px] text-gray-500">${snaCount} student(s) with no set assigned</p></div>`;
+            Object.keys(setCounts).forEach(setNo => { if (setCounts[setNo] > 0) usageDiv.innerHTML +=
+                    `<div class="rounded-xl border border-gray-100 p-2"><p class="font-medium text-[11px] mb-1">Set ${setNo}</p><p class="text-[10px] text-gray-500">${setCounts[setNo]} assignment(s)</p></div>`;
+                });
+            const occ = {}; if (state.library && state.library.shifts) state.library.shifts.forEach(sh => { occ[sh
+                    .id] = {}; if (state.library.totalSets) for (let i = 1; i <= state.library.totalSets; i++)
+                    occ[sh.id][i] = [];
+                occ[sh.id]['SNA'] = []; });
+            state.students.forEach(s => { (s.assignments || []).forEach(a => { if (occ[a.shift]?.[a.set]) occ[a
+                        .shift][a.set].push(s);
+                    else if (a.set === 'SNA' && occ[a.shift]?.['SNA']) occ[a.shift]['SNA'].push(s); }); });
+            if (state.library && state.library.shifts) state.library.shifts.forEach(sh => { let html =
+                    `<div class="rounded-xl border border-gray-100 p-2"><div class="flex items-center justify-between mb-1"><span class="text-[11px] font-medium">${sh.label}</span><span class="text-[10px] text-gray-400">Sets 1–${state.library.totalSets} + SNA</span></div><div class="flex flex-wrap gap-1">`;
+                for (let s = 1; s <= state.library.totalSets; s++) { const list = occ[sh.id][s]; const full =
+                        list && list.length > 0;
+                    html +=
+                        `<span class="inline-flex items-center justify-center min-w-[28px] px-1 h-6 rounded-md text-[10px] border cursor-pointer ${full?'bg-rose-500 text-white border-rose-500':'bg-transparent text-emerald-600 border-emerald-500/80'}" title="${full?list.map(st=>st.name).join(', '):'Free'}" data-shift="${sh.id}" data-set="${s}">${s}</span>`;
+                } const snaList = occ[sh.id]['SNA'] || []; const hasSNA = snaList.length > 0;
+                html +=
+                    `<span class="inline-flex items-center justify-center min-w-[28px] px-1 h-6 rounded-md text-[10px] border cursor-pointer ${hasSNA?'bg-purple-500 text-white border-purple-500':'bg-transparent text-purple-600 border-purple-500/80'}" title="${hasSNA?snaList.map(st=>st.name).join(', '):'No SNA students'}" data-shift="${sh.id}" data-set="SNA">SNA</span>`;
+                html += '</div></div>';
+                matrixDiv.innerHTML += html; });
+            matrixDiv.querySelectorAll('span[data-shift]').forEach(span => { span.addEventListener('click', () => {
+                    const shiftId = span.dataset.shift,
+                        setNo = span.dataset.set,
+                        list = occ[shiftId][setNo] || [];
+                    openSetPopupForShiftSet(shiftId, setNo, list);
+                }); });
+            if (state.library && state.library.shifts) state.library.shifts.forEach(sh => { const used = shiftCounts[
+                    sh.id] || 0;
+                shiftsList.innerHTML +=
+                    `<div class="flex items-center justify-between rounded-xl border border-gray-100 px-2 py-1.5"><div><p class="font-medium text-[11px]">${sh.label}</p><p class="text-[10px] text-gray-500">${used} used, ${state.library.totalSets-used} remaining</p></div></div>`;
+                });
+            for (let i = 1; i <= state.library.totalSets; i++) { const cnt = setCounts[i] || 0;
+                setsList.innerHTML +=
+                    `<div class="rounded-xl border border-gray-100 p-2 flex flex-col gap-1 cursor-pointer hover:bg-gray-50" data-set="${i}"><span class="text-[11px] font-medium">Set ${i}</span><span class="text-[10px] text-gray-500">${cnt} assigned</span></div>`;
+            }
+            setsList.innerHTML +=
+                `<div class="rounded-xl border border-purple-200 bg-purple-50 p-2 flex flex-col gap-1 cursor-pointer hover:bg-purple-100" data-set="SNA"><span class="text-[11px] font-medium text-purple-700 flex items-center gap-1"><span class="sna-badge text-[10px]">SNA</span> No Set</span><span class="text-[10px] text-gray-500">${snaCount} assigned</span></div>`;
+            setsList.querySelectorAll('[data-set]').forEach(el => { el.addEventListener('click', () => { const
+                        setNo = el.dataset.set; const entries = [];
+                    state.students.forEach(st => { (st.assignments || []).forEach(a => { if (String(a
+                                .set) === setNo) entries.push({ student: st, shift: a.shift }); }); });
+                    openSetPopupForSet(setNo, entries);
+                }); }); }
+
+        function getPrimarySeat(student) { let min = null;
+            (student.assignments || []).forEach(a => { if (a.set === 'SNA') return; const s = Number(a.set); if (!
+                    isNaN(s) && (min === null || s < min)) min = s; }); return min; }
+
+        function formatShiftLabel(shiftId) { if (!state.library || !state.library.shifts) return shiftId; const sh =
+                state.library.shifts.find(s => s.id === shiftId); return sh ? sh.label : shiftId; }
+
+        function applyFilters() { renderStudents(); }
+
+        function renderStudents() { const container = document.getElementById('studentCardsContainer'); if (!container)
+                return; const search = document.getElementById('filterSearch'),
+                shift = document.getElementById('filterShift'),
+                set = document.getElementById('filterSet'),
+                fee = document.getElementById('filterFee'); const q = search ? search.value.toLowerCase() : '',
+                selShift = shift ? shift.value : '',
+                selSet = set ? set.value : '',
+                selFee = fee ? fee.value : ''; let students = [...state.students].sort((a, b) => (getPrimarySeat(
+                    a) || 999) - (getPrimarySeat(b) || 999));
+            students = students.filter(s => { if (q && !s.name.toLowerCase().includes(q) && !(s.mobile || '')
+                    .toLowerCase().includes(q)) return false; if (selShift && !(s.assignments || []).some(a =>
+                        a.shift === selShift)) return false; if (selSet && selSet !== 'SNA') { if (!(s
+                        .assignments || []).some(a => a.set === parseInt(selSet))) return false; } else if (
+                    selSet === 'SNA') { if (!(s.assignments || []).some(a => a.set === 'SNA')) return false; }
+                if (selFee) { const fd = state.fees[s.id] || { status: 'due' }; if (fd.status !== selFee) return false; }
+                return true; });
+            container.innerHTML = '';
+            students.forEach(s => { const feeData = state.fees[s.id] || { status: 'due', monthlyFee: 600,
+                    amount: 0, lastPaymentMethod: '-' };
+                const seat = getPrimarySeat(s);
+                const statusClass = feeData.status === 'paid' ? 'bg-emerald-100 text-emerald-700' : (feeData
+                    .status === 'partial' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700');
+                const dotClass = feeData.status;
+                const avatarSrc = s.avatar ||
+                    `https://ui-avatars.com/api/?background=6366F1&color=fff&size=64&name=${encodeURIComponent(s.name)}`;
+                const dueAmount = Math.max((feeData.monthlyFee || 600) - (feeData.amount || 0), 0);
+                const shiftBadges = (s.assignments || []).map(a =>
+                    `<span class="inline-block rounded-full px-2 py-0.5 text-[10px] border ${a.set==='SNA'?'bg-purple-100 text-purple-700 border-purple-200':'bg-gray-100 text-gray-700 border-gray-200'}">${formatShiftLabel(a.shift)} ${a.set==='SNA'?'(SNA)':'('+a.set+')'}</span>`
+                    ).join('');
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all';
+                card.innerHTML =
+                    `<div class="p-4"><div class="flex items-start gap-3"><div class="avatar-container"><img src="${avatarSrc}" class="h-12 w-12 rounded-full object-cover border-2 border-gray-200" onerror="this.src='https://ui-avatars.com/api/?background=6366F1&color=fff&size=64&name=${encodeURIComponent(s.name)}'"><span class="status-dot ${dotClass}" style="width:12px;height:12px;"></span></div><div class="flex-1"><div class="flex justify-between items-start"><h4 class="font-bold text-gray-800">${escapeHtml(s.name)}</h4><span class="text-[10px] px-2 py-0.5 rounded-full ${statusClass} capitalize">${feeData.status}</span></div><p class="text-xs text-gray-500 mt-0.5">📞 ${s.mobile||'-'}</p><p class="text-xs text-gray-500">🪑 Seat ${seat??'—'}</p></div></div><div class="mt-2 flex flex-wrap gap-1">${shiftBadges||'<span class="text-[10px] text-gray-400 italic">No shifts assigned</span>'}</div><div class="mt-3 bg-gray-50 rounded-xl p-2 text-xs space-y-1"><div class="flex justify-between"><span class="text-gray-500">Monthly Fee:</span><span>₹${feeData.monthlyFee}</span></div><div class="flex justify-between"><span class="text-gray-500">Paid:</span><span>₹${feeData.amount||0}</span></div><div class="flex justify-between"><span class="text-gray-500">Due:</span><span class="text-rose-600 font-semibold">₹${dueAmount}</span></div></div><div class="flex flex-wrap gap-2 mt-3"><button data-action="pay" data-id="${s.id}" class="flex-1 bg-emerald-50 text-emerald-700 rounded-xl py-1.5 text-xs font-medium flex items-center justify-center gap-1"><i class="fa-solid fa-indian-rupee-sign"></i> Pay</button><button data-action="invoice" data-id="${s.id}" class="flex-1 bg-blue-50 text-blue-700 rounded-xl py-1.5 text-xs font-medium flex items-center justify-center gap-1"><i class="fa-solid fa-receipt"></i> Invoice</button><button data-action="whatsapp" data-id="${s.id}" class="flex-1 bg-green-50 text-green-700 rounded-xl py-1.5 text-xs font-medium flex items-center justify-center gap-1"><i class="fa-brands fa-whatsapp"></i> WA</button><button data-action="view" data-id="${s.id}" class="flex-1 bg-gray-100 text-gray-700 rounded-xl py-1.5 text-xs font-medium"><i class="fa-regular fa-eye"></i> View</button><button data-action="edit" data-id="${s.id}" class="flex-1 bg-amber-50 text-amber-700 rounded-xl py-1.5 text-xs font-medium"><i class="fa-regular fa-pen-to-square"></i> Edit</button><button data-action="delete" data-id="${s.id}" class="flex-1 bg-rose-50 text-rose-700 rounded-xl py-1.5 text-xs font-medium"><i class="fa-regular fa-trash-can"></i> Del</button></div></div>`;
+                container.appendChild(card); });
+            document.querySelectorAll('#studentCardsContainer [data-action]').forEach(btn => { btn.addEventListener(
+                    'click', (e) => { e.stopPropagation(); const id = btn.dataset.id,
+                        student = state.students.find(s => s.id === id); if (!student) return; const act =
+                        btn.dataset.action;
+                        guardAction(`Student ${act}`, () => { if (act === 'pay') openPaymentModal(
+                                student);
+                            else if (act === 'invoice') generateInvoice(student);
+                            else if (act === 'whatsapp') openWhatsAppTemplateModal(student);
+                            else if (act === 'view') openProfileModalForStudent(student);
+                            else if (act === 'edit') openStudentForm(student);
+                            else if (act === 'delete') { if (confirm(
+                                    `Delete ${student.name}?`
+                                    )) { state.students = state.students.filter(s => s
+                                        .id !== id);
+                                    delete state.fees[id];
+                                    saveStudents();
+                                    saveFees();
+                                    renderAll(); } } }); }); }); }
+
+        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m) { if (m === '&')
+                    return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
+
+        function openWhatsAppTemplateModal(student) { const fee = state.fees[student.id] || { status: 'due', amount: 0,
+                monthlyFee: 600, lastPaid: '' };
+            const modal = document.getElementById('whatsappTemplateModal');
+            const ta = document.getElementById('customMessageInput');
+            const cc = document.getElementById('charCount');
+            const templates = { welcome: (s, f) =>
+                    `🎉 Welcome to ${state.header.ownerName||'Library'}, ${s.name}! 🎉\n\n 📚 *Your Learning Journey Starts Here!* \n\n 🪑 Seat: ${getPrimarySeat(s)||'-'}\n🕒 Shift: ${(s.assignments||[]).map(a=>formatShiftLabel(a.shift)).join(', ')||'-'}\n💰 Monthly Fee: ₹${f.monthlyFee}\n\n 🌟 *We’re delighted to have you as part of our study family!*
+यहाँ आपको मिलेगा एक शांत, disciplined और focused environment — जो आपकी success को next level तक ले जाएगा 🚀
+
+📖 *Stay consistent, stay focused, and success will follow!*
+
+🤝 किसी भी सहायता के लिए बेझिझक हमसे संपर्क करें — हम हमेशा आपके साथ हैं।
+
+💡 *"आज की मेहनत ही कल की सफलता है!"*
+
+🔥 *Let’s crack your goals together!* 🔥`,
+                payment: (s, f) =>
+                    `✅ Payment Confirmation - ${state.header.ownerName||'Library'}\n\n👋Dear ${s.name},\n\n💰 *Payment Received Successfully!*
+We appreciate your payment — thank you for being a valued member 🙌 💰\n\n📊 *Details:*\n\n💰Amount: ₹${f.amount||0}\n📅Date: ${f.lastPaid||new Date().toDateString()}\n 🪑 Seat: ${getPrimarySeat(s)||'-'}\n🚀Status: ${f.status.toUpperCase()}\n\n📖 *Keep Learning, Keep Growing!*
+Your dedication today is building your success tomorrow 🚀
+
+🔔 *Note:* Kindly clear the remaining amount soon to continue uninterrupted access.
+
+🤝 Need help? We’re always here for you!
+
+✨ *Happy Reading & Stay Focused!* ✨
+
+
+
+! 📖`,
+                reminder: (s, f) =>
+                    `⏰ Fee Reminder - ${state.header.ownerName||'Library'}\n\n👋Hello ${s.name},\n\n🪑Seat: ${getPrimarySeat(s)||'-'}\n🕒 Shift: ${(s.assignments||[]).map(a=>formatShiftLabel(a.shift)).join(', ')||'-'}\n📅 Monthly Fee: ₹${f.monthlyFee}\n✅ Paid: ₹${f.amount||0}\n❌ Due: ₹${Math.max((f.monthlyFee||600)-(f.amount||0),0)}\n\nPlease 🔔 *Kind Reminder:*
+कृपया अपना बाकी शुल्क जल्द से जल्द जमा करें ताकि आपकी सीट और सुविधा बिना किसी रुकावट के जारी रहे 📚
+
+📞 *Library Desk*
+किसी भी सहायता के लिए हमसे संपर्क करें — हम हमेशा आपकी मदद के लिए तैयार हैं 🤝
+
+🚀 *Stay consistent, success is on the way!*
+✨ *Happy Studying!* ✨`,
+                inactive: (s, f) =>
+                    `⚠️ Inactive Alert - ${state.header.ownerName||'Library'}\n\n👋Hello ${s.name},\n\n📌 *We Miss You at the Library!*
+काफी समय से आपकी उपस्थिति दर्ज नहीं हुई है 😔
+
+🪑 *Your Seat ${getPrimarySeat(s)||'-'}* अभी भी आपके लिए सुरक्षित है — लेकिन उसे active बनाए रखने के लिए आपका आना जरूरी है 📚
+
+🔔 *Kind Request:*
+कृपया जल्द से जल्द अपनी attendance अपडेट करें या हमसे संपर्क करें ताकि आपकी membership active बनी रहे।
+
+📞 *Need Help?*
+Library Desk हमेशा आपकी सहायता के लिए उपलब्ध है 🤝
+
+🚀 *Come back, stay consistent & keep moving towards your goals!*
+✨ *We’re waiting for you!* ✨`
+            };
+            let active = 'reminder';
+            ta.value = templates.reminder(student, fee);
+            const upd = () => { if (cc) cc.innerText = ta.value.length + ' characters'; };
+            ta.addEventListener('input', upd);
+            upd();
+            const btns = document.querySelectorAll('.template-option');
+            btns.forEach(b => {
+                b.onclick = () => { active = b.dataset.template; const fn = templates[active]; if (fn) ta
+                        .value = fn(student, fee);
+                    upd();
+                    btns.forEach(bb => bb.classList.remove('active'));
+                    b.classList.add('active'); };
+            });
+            btns.forEach(b => { if (b.dataset.template === 'reminder') b.classList.add('active'); });
+            const sendBtn = document.getElementById('sendWhatsAppNowBtn');
+            const newSend = sendBtn.cloneNode(true);
+            sendBtn.parentNode.replaceChild(newSend, sendBtn);
+            newSend.onclick = () => { let msg = ta.value;
+                msg = msg.replace(/{student_name}/g, student.name).replace(/{amount}/g, fee.amount || 0)
+                    .replace(/{due}/g, Math.max((fee.monthlyFee || 600) - (fee.amount || 0), 0)).replace(
+                        /{library}/g, state.header.ownerName || 'Library');
+                const phone = (student.mobile || '').replace(/\D/g, '');
+                if (phone) { window.open(
+                        `https://wa.me/${phone.length===10?'91'+phone:phone}?text=${encodeURIComponent(msg)}`,
+                        '_blank');
+                    modal.style.display = 'none'; } else alert('⚠️ Student mobile number missing!'); };
+            document.getElementById('closeTemplateModal').onclick = () => modal.style.display = 'none';
+            modal.style.display = 'flex'; }
+
+        function openInvoiceReminderModal() { const modal = document.getElementById('invoiceReminderModal'),
+                container = document.getElementById('invoiceStudentList'); if (!modal || !container) return; const
+                due = state.students.filter(s => { const f = state.fees[s.id] || { status: 'due' }; return f
+                    .status === 'due' || f.status === 'partial'; }); if (due.length === 0) { container.innerHTML =
+                    '<div class="text-center py-8 text-gray-500">✅ No pending dues! All students are up to date.</div>';
+                modal.style.display = 'flex'; return; }
+            container.innerHTML = '';
+            due.forEach(s => { const f = state.fees[s.id] || { monthlyFee: 600, amount: 0, status: 'due' };
+                const dueAmt = Math.max((f.monthlyFee || 600) - (f.amount || 0), 0); const qr = state.header
+                    .qrCodeUrl; const div = document.createElement('div');
+                div.className = 'due-student-item';
+                div.innerHTML =
+                    `<div class="flex justify-between items-start gap-2"><div class="flex-1"><p class="font-semibold text-sm">${s.name}</p><p class="text-xs text-gray-500">📞 ${s.mobile||'No mobile'} | Seat ${getPrimarySeat(s)||'-'}</p><div class="grid grid-cols-2 gap-1 text-[11px] mt-2 bg-gray-50 p-2 rounded-xl"><span>Monthly Fee: ₹${f.monthlyFee}</span><span>Paid: ₹${f.amount||0}</span><span class="font-semibold text-rose-600">Due: ₹${dueAmt}</span><span>Status: ${f.status.toUpperCase()}</span></div></div><div class="flex flex-col items-end gap-2"><div class="invoice-qr-preview">${qr?`<img src="${qr}" alt="QR">`:'<i class="fa-solid fa-qrcode text-2xl text-gray-400"></i>'}</div><button class="send-invoice-btn" data-student-id="${s.id}"><i class="fa-brands fa-whatsapp"></i> Send Invoice</button></div></div>`;
+                container.appendChild(div); });
+            container.querySelectorAll('.send-invoice-btn').forEach(btn => { btn.addEventListener('click', () => {
+                    const id = btn.dataset.studentId,
+                        stud = state.students.find(st => st.id === id); if (stud)
+                        sendInvoiceViaWhatsApp(stud);
+                }); });
+            modal.style.display = 'flex'; }
+
+        function sendInvoiceViaWhatsApp(student) { const fee = state.fees[student.id] || { monthlyFee: 600, amount: 0,
+                status: 'due' }; const dueAmt = Math.max((fee.monthlyFee || 600) - (fee.amount || 0), 0); const today =
+                new Date(); const month = today.toLocaleString('default', { month: 'long' }); const year = today
+                .getFullYear(); let msg =
+                `📄 *${state.header.ownerName||'Library'} - Fee Invoice*\n━━━━━━━━━━━━━━━━━━━━━\n*Student:* ${student.name}\n*Mobile:* ${student.mobile||'Not provided'}\n*Seat:* ${getPrimarySeat(student)||'-'}\n*Month:* ${month} ${year}\n━━━━━━━━━━━━━━━━━━━━━\n*Monthly Fee:* ₹${fee.monthlyFee}\n*Paid Amount:* ₹${fee.amount||0}\n*Due Amount:* ₹${dueAmt}\n*Status:* ${fee.status.toUpperCase()}\n━━━━━━━━━━━━━━━━━━━━━\n🔹 Please clear the due amount at the earliest.\n${state.header.qrCodeUrl?'🔹 Scan QR code to pay via UPI.\n':'🔹 Pay at library counter or ask for UPI details.\n'}━━━━━━━━━━━━━━━━━━━━━\n📞 For queries, contact library desk.\nThank you! 🙏`;
+            const phone = (student.mobile || '').replace(/\D/g, '');
+            if (phone) window.open(
+                    `https://wa.me/${phone.length===10?'91'+phone:phone}?text=${encodeURIComponent(msg)}`,
+                '_blank');
+            else alert('⚠️ Student mobile missing'); }
+
+        function closeReminderInvoiceModal() { document.getElementById('invoiceReminderModal').style.display = 'none'; }
+
+        function renderFees() { const container = document.getElementById('feesListContainer'); if (!container) return;
+            container.innerHTML = ''; const sorted = [...state.students].sort((a, b) => (getPrimarySeat(a) || 999) - (
+                getPrimarySeat(b) || 999));
+            sorted.forEach(s => { const f = state.fees[s.id] || { status: 'due', amount: 0, monthlyFee: 600,
+                    lastPaid: '', lastPaymentMethod: '-' };
+                const statusClass = { paid: 'text-emerald-600 bg-emerald-50', partial: 'text-amber-600 bg-amber-50',
+                    due: 'text-rose-600 bg-rose-50' } [f.status];
+                const seat = getPrimarySeat(s);
+                const dueAmt = Math.max((f.monthlyFee || 600) - (f.amount || 0), 0);
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl border border-gray-100 shadow-sm p-4 transition-all hover:shadow-md';
+                card.innerHTML =
+                    `<div class="flex items-start justify-between gap-2"><div class="flex items-start gap-3"><div class="avatar-container">${s.avatar?`<img src="${s.avatar}" class="h-10 w-10 rounded-full object-cover border-2 border-gray-200" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?background=6366F1&color=fff&size=40&name=${encodeURIComponent(s.name)}'" />`:`<div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-700">${(s.name[0]||'?').toUpperCase()}</div>`}<span class="status-dot ${f.status}" style="width:10px;height:10px;border-width:1px;"></span></div><div><p class="font-semibold text-sm">${s.name}</p><p class="text-[11px] text-gray-500">${s.mobile||'-'}</p><p class="text-[11px] text-gray-500 mt-1">Seat ${seat??'-'}</p></div><span class="px-2 py-0.5 rounded-full ${statusClass} text-[10px] font-medium capitalize whitespace-nowrap">${f.status}</span></div><div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] bg-gray-50 p-2 rounded-xl"><div class="flex justify-between"><span class="text-gray-500">Monthly Fee:</span><span class="font-medium">₹${f.monthlyFee}</span></div><div class="flex justify-between"><span class="text-gray-500">Paid:</span><span class="font-medium">${balanceVisible?'₹'+(f.amount||0):'Hidden'}</span></div><div class="flex justify-between"><span class="text-gray-500">Due:</span><span class="font-medium text-rose-600">₹${dueAmt}</span></div><div class="flex justify-between"><span class="text-gray-500">Method:</span><span class="font-medium">${f.lastPaymentMethod?f.lastPaymentMethod.toUpperCase():'-'}</span></div><div class="flex justify-between col-span-2"><span class="text-gray-500">Last Paid:</span><span class="font-medium">${f.lastPaid||'-'}</span></div></div><div class="mt-3 flex justify-end gap-2"><button class="mark-paid-card px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-[11px] font-medium flex items-center gap-1" data-id="${s.id}"><i class="fa-solid fa-indian-rupee-sign text-[10px]"></i> Pay</button><button class="invoice-card px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-[11px] font-medium flex items-center gap-1" data-id="${s.id}"><i class="fa-regular fa-file-invoice text-[10px]"></i> Invoice</button></div>`;
+                container.appendChild(card); });
+            document.querySelectorAll('.mark-paid-card').forEach(btn => { btn.addEventListener('click', () => { const
+                        id = btn.dataset.id,
+                        stud = state.students.find(st => st.id === id); if (stud) guardAction(
+                            "Mark Payment", () => openPaymentModal(stud)); }); });
+            document.querySelectorAll('.invoice-card').forEach(btn => { btn.addEventListener('click', () => { const
+                        id = btn.dataset.id,
+                        stud = state.students.find(st => st.id === id); if (stud) guardAction(
+                            "Generate Invoice", () => generateInvoice(stud)); }); }); }
+
+        // ========== STUDENT FORM ==========
+        function getOccupiedSlots(excludeId = null) { const occ = new Set();
+            state.students.forEach(s => { if (excludeId && s.id === excludeId) return;
+                (s.assignments || []).forEach(a => { if (a.shift && a.set && a.set !== 'SNA') occ.add(
+                        `${a.shift}|${a.set}`); }); }); return occ; }
+
+        function renderAssignmentRows(assignments, currentId) { const container = document.getElementById(
+                'assignmentList'); if (!container) return;
+            container.innerHTML = '';
+            const occupied = getOccupiedSlots(currentId);
+            (assignments.length ? assignments : [{ shift: '', set: '' }]).forEach(a => { const row = document
+                    .createElement('div');
+                row.className = 'assignment-row flex flex-wrap items-center gap-2 mb-2';
+                const shiftSel = document.createElement('select');
+                shiftSel.className = 'shiftSelect px-2 py-1 rounded-xl border bg-gray-50 text-[11px]'; if (state
+                    .library && state.library.shifts) shiftSel.innerHTML =
+                    '<option value="">Select shift</option>' + state.library.shifts.map(sh =>
+                    `<option value="${sh.id}">${sh.label}</option>`).join('');
+                shiftSel.value = a.shift || '';
+                const setSel = document.createElement('select');
+                setSel.className = 'setSelect px-2 py-1 rounded-xl border bg-gray-50 text-[11px] min-w-[90px]';
+                const rmBtn = document.createElement('button');
+                rmBtn.type = 'button';
+                rmBtn.className = 'btnRemoveAssignment px-2 py-1 rounded-lg bg-gray-100 text-[11px]';
+                rmBtn.innerHTML = 'Remove';
+                row.appendChild(shiftSel);
+                row.appendChild(setSel);
+                row.appendChild(rmBtn);
+                container.appendChild(row);
+                const update = () => { const shift = shiftSel.value;
+                    setSel.innerHTML = '';
+                    if (!shift) { setSel.innerHTML = '<option value="">Select shift first</option>'; return; }
+                    const snaOpt = document.createElement('option');
+                    snaOpt.value = 'SNA';
+                    snaOpt.textContent = 'SNA (No Set Allotted)';
+                    snaOpt.className = 'sna-set-option';
+                    setSel.appendChild(snaOpt); if (state.library && state.library.totalSets) for (let i = 1; i <=
+                        state.library.totalSets; i++) { const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent =
+                        `Set ${i}${occupied.has(`${shift}|${i}`)?' (Full)':''}`;
+                        opt.disabled = occupied.has(`${shift}|${i}`);
+                        setSel.appendChild(opt); } if (a.set === 'SNA') setSel.value = 'SNA';
+                    else if (a.set && !occupied.has(`${shift}|${a.set}`)) setSel.value = a.set; };
+                shiftSel.addEventListener('change', update);
+                rmBtn.addEventListener('click', () => { row.remove(); if (!container.children.length)
+                        renderAssignmentRows([], currentId); });
+                update(); }); }
+
+        function collectAssignmentsFromForm() { const arr = [];
+            document.querySelectorAll('.assignment-row').forEach(row => { const shift = row.querySelector(
+                    '.shiftSelect')?.value; const set = row.querySelector('.setSelect')?.value; if (shift &&
+                    set) arr.push({ shift, set: set === 'SNA' ? 'SNA' : parseInt(set) }); }); return arr; }
+
+        function openStudentForm(student = null) { guardAction("Add/Edit Student", () => { const modal = document
+                    .getElementById('studentFormModal'); if (modal) modal.classList.remove('hidden'); if (student) {
+                    document.getElementById('studentId').value = student.id;
+                    document.getElementById('studentName').value = student.name || '';
+                    document.getElementById('studentMobile').value = student.mobile || '';
+                    document.getElementById('studentAadhar').value = student.aadhar || '';
+                    document.getElementById('studentAdmission').value = student.admissionDate || '';
+                    const fd = state.fees[student.id] || { status: 'due', monthlyFee: 600 };
+                    document.getElementById('studentFeeStatus').value = fd.status || 'due';
+                    document.getElementById('studentMonthlyFee').value = fd.monthlyFee || 600;
+                    document.getElementById('studentAvatar').value = student.avatar || '';
+                    document.getElementById('avatarPreview').src = student.avatar ||
+                        'https://via.placeholder.com/80?text=Photo';
+                    renderAssignmentRows(student.assignments || [], student.id); } else {
+                    document.getElementById('studentId').value = '';
+                    document.getElementById('studentName').value = '';
+                    document.getElementById('studentMobile').value = '';
+                    document.getElementById('studentAadhar').value = '';
+                    document.getElementById('studentAdmission').value = '';
+                    document.getElementById('studentMonthlyFee').value = 600;
+                    document.getElementById('studentAvatar').value = '';
+                    document.getElementById('avatarPreview').src = 'https://via.placeholder.com/80?text=Photo';
+                    renderAssignmentRows([], null); } }); }
+
+        function closeStudentForm() { document.getElementById('studentFormModal').classList.add('hidden'); }
+
+        async function saveStudentFromForm() { const idEl = document.getElementById('studentId'),
+                nameEl = document.getElementById('studentName'),
+                mobileEl = document.getElementById('studentMobile'),
+                aadharEl = document.getElementById('studentAadhar'),
+                admissionEl = document.getElementById('studentAdmission'),
+                feeStatusEl = document.getElementById('studentFeeStatus'),
+                monthlyFeeEl = document.getElementById('studentMonthlyFee'),
+                avatarEl = document.getElementById('studentAvatar'); if (!nameEl || !nameEl.value.trim()) { alert(
+                    '⚠️ Name required'); return; } if (!mobileEl || !mobileEl.value.trim()) { alert(
+                    '⚠️ Mobile required'); return; } const id = idEl ? idEl.value || 'S' + Date.now() : 'S' + Date
+                .now(); const assignments = collectAssignmentsFromForm(); const seen = new Set(); for (const a of
+                assignments) { const key = `${a.shift}|${a.set}`; if (seen.has(key)) { alert(
+                        '❌ Same shift+set repeated'); return; }
+                seen.add(key); } const occupied = getOccupiedSlots(id); for (const a of assignments) { if (a.set !==
+                    'SNA' && occupied.has(`${a.shift}|${a.set}`)) { alert(
+                        `❌ Set ${a.set} in ${formatShiftLabel(a.shift)} already taken`); return; } } let seat =
+                null; const nums = assignments.filter(a => a.set !== 'SNA').map(a => a.set); if (nums.length) seat =
+                Math.min(...nums); const student = { id, name: nameEl.value.trim(), mobile: mobileEl.value
+                    .trim(), aadhar: aadharEl ? aadharEl.value : '', admissionDate: admissionEl ?
+                    admissionEl.value : '', avatar: avatarEl ? avatarEl.value : '', feeStatus: feeStatusEl ?
+                    feeStatusEl.value : 'due', assignments, seat }; const idx = state.students.findIndex(s => s
+                    .id === id); if (idx >= 0) state.students[idx] = student;
+            else state.students.push(student);
+            const monthlyFee = parseInt(monthlyFeeEl ? monthlyFeeEl.value : '600') || 600; if (!state.fees[id]) state
+                .fees[id] = { status: student.feeStatus, amount: 0, monthlyFee, lastPaid: '', months: {},
+                    paymentHistory: [] };
+            else state.fees[id].status = student.feeStatus, state.fees[id].monthlyFee = monthlyFee;
+            closeStudentForm();
+            alert('✅ Student saved!');
+            saveStudents();
+            saveFees();
+            renderStudents();
+            renderDashboardCards();
+            renderDashboardCharts();
+            renderShiftAndLibrary();
+            renderFees(); }
+
+        // ========== SET POPUP ==========
+        function openSetPopupForShiftSet(shiftId, setNo, students) { openSetPopup(
+                `Shift: ${formatShiftLabel(shiftId)} · ${setNo==='SNA'?'SNA (No Set)':'Set '+setNo}`,
+                `Total Students: ${students.length}`, students.map(s => ({ student: s, shift: shiftId }))); }
+
+        function openSetPopupForSet(setNo, entries) { openSetPopup(`Set ${setNo==='SNA'?'SNA (No Set)':setNo} · Assignments`,
+                `Total Students: ${entries.length}`, entries); }
+
+        function openSetPopup(title, subtitle, entries) { const modal = document.getElementById('setPopupModal'),
+                titleEl = document.getElementById('setPopupTitle'),
+                subEl = document.getElementById('setPopupSubtitle'),
+                listEl = document.getElementById('setPopupList'); if (!modal || !titleEl || !subEl || !listEl)
+                return;
+            titleEl.innerText = title;
+            subEl.innerText = subtitle;
+            listEl.innerHTML = '';
+            if (!entries || entries.length === 0) listEl.innerHTML =
+                '<p class="text-gray-500 text-[13px] p-2 text-center">⚡ Ye set FREE hai. Koi student assign nahi hai.</p>';
+            else { entries.forEach((entry, idx) => { const st = entry.student || entry; const shiftLabel = entry
+                        .shift ? ` (${formatShiftLabel(entry.shift)})` : ''; const sd = state.students.find(s =>
+                        s.id === st.id) || st; const avatar = sd.avatar ||
+                        `https://ui-avatars.com/api/?background=6366F1&color=fff&size=128&name=${encodeURIComponent(sd.name||'S')}`;
+                    const div = document.createElement('div');
+                    div.className = 'p-3 rounded-md hover:bg-gray-50 border-b border-gray-100 last:border-0';
+                    div.innerHTML =
+                        `<div class="flex items-center justify-between"><div class="flex items-center gap-3"><img class="h-8 w-8 rounded-full object-cover border border-gray-200" src="${avatar}" alt="avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?background=6366F1&color=fff&size=32&name=${encodeURIComponent(sd.name||'S')}'" /><div><button class="text-left text-indigo-600 hover:underline text-[13px] font-medium student-profile-btn" data-id="${sd.id}">${sd.name}</button><div class="text-[11px] text-gray-500">${sd.mobile||'No mobile'} · Adm: ${sd.admissionDate||'-'}${shiftLabel}</div></div></div><div class="text-[12px] text-gray-400 font-medium">${idx+1}.</div></div>`;
+                    listEl.appendChild(div); });
+                listEl.querySelectorAll('.student-profile-btn').forEach(btn => { btn.addEventListener('click',
+                        () => { const id = btn.dataset.id; const s = state.students.find(s => s.id ===
+                            id); if (s) openProfileModalForStudent(s); }); }); }
+            modal.classList.remove('hidden'); }
+
+        // ========== SETTINGS ==========
+        function initSettings() {
+            const nameInp = document.getElementById('ownerNameInput'),
+                addrInp = document.getElementById('libraryAddressInput'),
+                phoneInp = document.getElementById('libraryPhoneInput'),
+                emailInp = document.getElementById('libraryEmailInput'),
+                logoUp = document.getElementById('logoUploadInput'),
+                logoPrev = document.getElementById('headerLogoPreview'),
+                logoPlace = document.getElementById('headerLogoPlaceholder'),
+                logoHidden = document.getElementById('headerLogoHidden'),
+                clearLogo = document.getElementById('btnClearLogo'),
+                saveHead = document.getElementById('btnSaveHeader');
+            const qrUp = document.getElementById('qrUploadInput'),
+                rmQR = document.getElementById('btnRemoveQR'),
+                qrPrev = document.getElementById('qrPreviewImage'),
+                qrPrevIcon = document.getElementById('qrPreviewIcon'),
+                qrHidden = document.getElementById('qrHidden');
+            const upiIdInput = document.getElementById('upiIdInput');
+            const saveUpiBtn = document.getElementById('btnSaveUpiId');
+            if (nameInp) nameInp.value = state.header.ownerName;
+            if (addrInp) addrInp.value = state.header.address || '';
+            if (phoneInp) phoneInp.value = state.header.phone || '';
+            if (emailInp) emailInp.value = state.header.email || '';
+            if (state.header.logoUrl && logoPrev) { logoPrev.src = state.header.logoUrl;
+                logoPrev.classList.remove('hidden'); if (logoPlace) logoPlace.classList.add('hidden'); if (logoHidden)
+                    logoHidden.value = state.header.logoUrl; }
+            if (logoUp) logoUp.addEventListener('change', async function() { const f = this.files[0]; if (f && f
+                    .type.startsWith('image/')) { const b64 = await imageToBase64(f); if (logoPrev) { logoPrev
+                        .src = b64;
+                        logoPrev.classList.remove('hidden'); } if (logoPlace) logoPlace.classList.add('hidden');
+                    if (logoHidden) logoHidden.value = b64; } });
+            if (clearLogo) clearLogo.addEventListener('click', () => { if (logoPrev) { logoPrev.src = '';
+                    logoPrev.classList.add('hidden'); } if (logoPlace) logoPlace.classList.remove('hidden'); if (
+                    logoHidden) logoHidden.value = ''; });
+            if (qrUp) qrUp.addEventListener('change', async function() { const f = this.files[0]; if (f && f.type
+                    .startsWith('image/')) { const b64 = await imageToBase64(f); if (qrPrev) { qrPrev.src =
+                        b64;
+                        qrPrev.classList.remove('hidden');
+                        qrPrevIcon.classList.add('hidden');
+                        qrHidden.value = b64; } } });
+            if (rmQR) rmQR.addEventListener('click', () => { if (qrPrev) { qrPrev.src = '';
+                    qrPrev.classList.add('hidden');
+                    qrPrevIcon.classList.remove('hidden');
+                    qrHidden.value = ''; } });
+            if (saveHead) saveHead.addEventListener('click', async () => { guardAction("Header Settings",
+                async () => { state.header.ownerName = nameInp ? nameInp.value || 'Library Name' :
+                    'Library Name';
+                    state.header.address = addrInp ? addrInp.value || '' : '';
+                    state.header.phone = phoneInp ? phoneInp.value || '' : '';
+                    state.header.email = emailInp ? emailInp.value || '' : '';
+                    state.header.logoUrl = logoHidden?.value || '';
+                    state.header.qrCodeUrl = qrHidden?.value || '';
+                    await saveHeaderData();
+                    renderNewHeader();
+                    alert('✅ Header updated'); }); });
+            if (saveUpiBtn) saveUpiBtn.addEventListener('click', async () => { guardAction("UPI Settings",
+                async () => { state.header.upiId = upiIdInput ? upiIdInput.value.trim() : "";
+                    await saveHeaderData();
+                    renderNewHeader();
+                    alert("✅ UPI ID saved. Dynamic QR will now work."); }); });
+            const userNameInp = document.getElementById('userNameInput'),
+                userAvUp = document.getElementById('userAvatarUpload'),
+                userAvPrev = document.getElementById('userAvatarPreview'),
+                userAvFall = document.getElementById('userAvatarPreviewFallback'),
+                userAvHidden = document.getElementById('userAvatarHidden'),
+                saveUser = document.getElementById('btnSaveUserProfile'); if (userNameInp) userNameInp.value =
+                state.header.userName; if (state.header.userAvatar && userAvPrev) { userAvPrev.src = state.header
+                    .userAvatar;
+                userAvPrev.classList.remove('hidden'); if (userAvFall) userAvFall.classList.add('hidden'); if (
+                    userAvHidden) userAvHidden.value = state.header.userAvatar; } if (userAvUp) userAvUp
+                .addEventListener('change', async function() { const f = this.files[0]; if (f && f.type.startsWith(
+                        'image/')) { const b64 = await imageToBase64(f); if (userAvPrev) { userAvPrev.src =
+                            b64;
+                        userAvPrev.classList.remove('hidden'); } if (userAvFall) userAvFall.classList.add(
+                        'hidden'); if (userAvHidden) userAvHidden.value = b64; } });
+            if (saveUser) saveUser.addEventListener('click', async () => { guardAction("User Profile",
+                async () => { state.header.userName = userNameInp ? userNameInp.value || 'Admin User' :
+                        'Admin User';
+                    state.header.userAvatar = userAvHidden?.value || '';
+                    await saveHeaderData();
+                    renderNewHeader();
+                    alert('✅ User profile updated'); }); });
+            const shiftTA = document.getElementById('shiftLinesInput'),
+                saveShifts = document.getElementById('btnSaveShifts'); if (shiftTA && state.library && state
+                .library.shifts) shiftTA.value = state.library.shifts.map(sh => sh.label).join('\n'); if (
+                saveShifts) saveShifts.addEventListener('click', async () => { guardAction("Shift Settings",
+                async () => { if (!shiftTA) return; const lines = shiftTA.value.split('\n').map(l => l
+                        .trim()).filter(l => l); if (!lines.length) { alert('At least one shift'); return; }
+                    const newShifts = lines.map((label, i) => ({ id: `shift-${i+1}`, label,
+                        capacity: state.library.totalSets })); const validIds = new Set(newShifts.map(
+                        sh => sh.id));
+                    state.students.forEach(s => { s.assignments = (s.assignments || []).filter(a =>
+                            validIds.has(a.shift)); });
+                    state.library.shifts = newShifts;
+                    await saveLibrary();
+                    await saveStudents();
+                    populateShiftFilter();
+                    alert('✅ Shifts updated'); }); });
+            const customize = document.getElementById('btnCustomizeSets'); if (customize) customize.addEventListener(
+                'click', async () => { guardAction("Set Customization", async () => { const val = parseInt(
+                        prompt('Total sets (1-50):', state.library.totalSets)); if (val && val > 0 && val <=
+                        250) { state.library.totalSets = val; if (state.library.shifts) state.library
+                            .shifts.forEach(sh => sh.capacity = val); await saveLibrary();
+                        alert('✅ Sets updated'); } }); });
+            document.getElementById('yearSelector')?.addEventListener('change', () => renderDashboardCharts());
+            document.getElementById('toggleBalanceVisibility')?.addEventListener('click', () => { balanceVisible = !
+                    balanceVisible;
+                document.getElementById('toggleBalanceVisibility').innerText = balanceVisible ? 'Hide' : 'Show';
+                renderDashboardCharts();
+                renderFees(); });
+            document.getElementById('btnWhatsAppReminders')?.addEventListener('click', () => { guardAction(
+                    "WhatsApp Reminders", () => openInvoiceReminderModal()); });
+            document.getElementById('btnBackupDrive')?.addEventListener('click', () =>
+                alert('📁 Google Drive backup feature - You can integrate Google Drive API separately'));
+            document.getElementById('btnExportJSON')?.addEventListener('click', () => { guardAction("Export Data",
+                () => { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `backup_${new Date().toISOString().slice(0,19)}.json`;
+                    a.click();
+                    alert('✅ Data exported'); }); });
+            document.getElementById('importJSONInput')?.addEventListener('change', async (e) => { const file = e
+                    .target.files[0]; if (file) { const reader = new FileReader();
+                    reader.onload = async (e) => { try { const imp = JSON.parse(e.target.result);
+                            state = imp; if (!state.monthlyCollectionByYear) state
+                                .monthlyCollectionByYear = {};
+                            if (!state.header) state.header = { ownerName: "Library Name",
+                                logoUrl: "", userName: "Admin User", userAvatar: "",
+                            qrCodeUrl: "", address: "", phone: "", email: "", upiId: "" };
+                            if (!state.header.qrCodeUrl) state.header.qrCodeUrl = "";
+                            if (!state.header.address) state.header.address = "";
+                            if (!state.header.phone) state.header.phone = "";
+                            if (!state.header.email) state.header.email = "";
+                            if (!state.header.upiId) state.header.upiId = "";
+                            await saveStudents();
+                            await saveFees();
+                            await saveLibrary();
+                            await saveHeaderData();
+                            await saveMonthlyCollection();
+                            alert('✅ Data imported');
+                            renderAll(); } catch (err) { alert('❌ Invalid JSON'); } };
+                    reader.readAsText(file); } });
+            document.getElementById('closeInvoiceModal')?.addEventListener('click', closeReminderInvoiceModal);
+            document.getElementById('invoiceReminderModal')?.addEventListener('click', (e) => { if (e.target ===
+                    document.getElementById('invoiceReminderModal')) closeReminderInvoiceModal(); });
+            document.getElementById('closeInvoiceModalBtn')?.addEventListener('click', closeInvoiceModal);
+            document.getElementById('invoiceModal')?.addEventListener('click', (e) => { if (e.target === document
+                    .getElementById('invoiceModal')) closeInvoiceModal(); });
+            const manualRefreshBtn = document.getElementById('btnRefreshFeesManual'); if (manualRefreshBtn)
+                manualRefreshBtn.addEventListener('click', () => guardAction("Manual Fee Refresh",
+                manualFeeRefresh));
+        }
+
+        function initForms() {
+            document.getElementById('btnNewStudent')?.addEventListener('click', () => openStudentForm());
+            document.getElementById('studentFormCancel')?.addEventListener('click', closeStudentForm);
+            const saveBtn = document.getElementById('saveStudentBtn'); if (saveBtn) { const newBtn = saveBtn
+                    .cloneNode(true);
+                saveBtn.parentNode.replaceChild(newBtn, saveBtn);
+                newBtn.addEventListener('click', (e) => { e.preventDefault();
+                    e.stopPropagation();
+                    saveStudentFromForm(); }); }
+            document.getElementById('studentFormModal')?.addEventListener('click', (e) => { if (e.target.id ===
+                    'studentFormModal') closeStudentForm(); });
+            document.getElementById('btnAddAssignment')?.addEventListener('click', () => { const idEl = document
+                    .getElementById('studentId'); const curId = idEl ? idEl.value || null : null; const cur =
+                    collectAssignmentsFromForm();
+                cur.push({ shift: '', set: '' });
+                renderAssignmentRows(cur, curId); });
+            const avatarUpload = document.getElementById('studentAvatarUpload');
+            const avatarCamera = document.getElementById('studentAvatarCamera');
+            const deleteAvatarBtn = document.getElementById('btnDeleteStudentAvatar'); if (avatarUpload) avatarUpload
+                .addEventListener('change', async function(e) { const f = e.target.files[0]; if (f && f.type
+                        .startsWith('image/')) { if (f.size > 10 * 1024) { alert(
+                            '❌ Image exceeds 10KB limit. Please choose a smaller image.');
+                        this.value = ''; return; } try { const compressed = await compressToMaxSize(f,
+                            10);
+                        document.getElementById('avatarPreview').src = compressed;
+                        document.getElementById('studentAvatar').value = compressed; } catch (err) { alert(
+                            '❌ Compression failed: ' + err.message); } } });
+            if (avatarCamera) avatarCamera.addEventListener('change', async function(e) { const f = e.target
+                    .files[0]; if (f && f.type.startsWith('image/')) { if (f.size > 10 * 1024) { alert(
+                            '❌ Image exceeds 10KB limit. Use smaller image.');
+                        this.value = ''; return; } try { const compressed = await compressToMaxSize(f,
+                            10);
+                        document.getElementById('avatarPreview').src = compressed;
+                        document.getElementById('studentAvatar').value = compressed; } catch (err) { alert(
+                            '❌ Compression failed: ' + err.message); } } });
+            if (deleteAvatarBtn) deleteAvatarBtn.addEventListener('click', () => { document.getElementById(
+                    'avatarPreview').src = 'https://via.placeholder.com/80?text=Photo';
+                document.getElementById('studentAvatar').value = ''; });
+            const payModal = document.getElementById('paymentMethodModal'); if (payModal) { payModal.addEventListener(
+                    'click', (e) => { if (e.target === payModal) closePaymentModal(); });
+                const cfm = document.getElementById('confirmPaymentBtn'); if (cfm) { const newCfm = cfm.cloneNode(
+                        true);
+                    cfm.parentNode.replaceChild(newCfm, cfm);
+                    newCfm.addEventListener('click', confirmPayment); } }
+        }
+
+        function setupAttendanceButton() { const btn = document.getElementById('attendanceBtn'); if (btn) btn
+                .addEventListener('click', (e) => { e.preventDefault();
+                    window.open('https://readbench2.blogspot.com', '_blank'); }); }
+
+        function renderAll() { renderNewHeader();
+            renderDashboardCards();
+            renderDashboardCharts();
+            renderShiftAndLibrary();
+            renderStudents();
+            renderFees(); }
+
+        // ========== GUARD ACTION ==========
+        async function guardAction(featureName, actionCallback) {
+            const active = await isSubscriptionActive();
+            if (active) { if (actionCallback) actionCallback(); } else showSubscriptionModal(featureName,
+                actionCallback);
+        }
+
+        // ========== PWA INSTALL ==========
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const settingsInstallBtn = document.getElementById('installAppBtnSettings'); if (settingsInstallBtn)
+                settingsInstallBtn.style.display = 'flex';
+        });
+        document.getElementById('installAppBtnSettings')?.addEventListener('click', async () => { if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response: ${outcome}`);
+                deferredPrompt = null;
+            } else { alert('Install prompt not available. You can still add to home screen manually.'); } });
+        if (window.matchMedia('(display-mode: standalone)').matches) { const installBtn = document.getElementById(
+                'installAppBtnSettings'); if (installBtn) installBtn.style.display = 'none'; }
+
+        // ========== AUTH STATE ==========
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                currentLibraryId = user.uid;
+                const cacheLoaded = loadCacheForLibrary(currentLibraryId); if (cacheLoaded) renderAll();
+                loginModal.classList.add('hidden');
+                registerModal.classList.add('hidden');
+                appElement.classList.remove('hidden');
+                await loadLibraryData();
+                setupDatabaseListeners();
+                scheduleDailyFeeReset();
+                setupAttendanceButton();
+            } else {
+                currentUser = null;
+                currentLibraryId = null;
+                appElement.classList.add('hidden');
+                loginModal.classList.remove('hidden');
+                if (dailyResetTimeout) clearTimeout(dailyResetTimeout);
+                databaseListeners.forEach(off => off());
+                databaseListeners = [];
+            }
+        });
+
+        // ========== DOM READY ==========
+        document.addEventListener('DOMContentLoaded', () => { populateYearSelector();
+            initNavigation();
+            initFilters();
+            initForms();
+            initSettings();
+            initProfileModal();
+            setupAttendanceButton(); });
+
+        // ========== PWA MANIFEST & SW ==========
+        (function setupPWA() {
+            const manifestObj = {
+                name: "ReadBench - Library Manager",
+                short_name: "ReadBench",
+                start_url: ".",
+                display: "standalone",
+                theme_color: "#4f46e5",
+                background_color: "#ffffff",
+                icons: [
+                    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='monospace'%3ERB%3C/text%3E%3C/svg%3E",
+                        sizes: "any", type: "image/svg+xml", purpose: "any" },
+                    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%234f46e5'/%3E%3Ctext x='256' y='350' font-size='280' text-anchor='middle' fill='white' font-family='monospace'%3ERB%3C/text%3E%3C/svg%3E",
+                        sizes: "512x512", type: "image/svg+xml", purpose: "any" }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: "application/json" });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = "manifest";
+            manifestLink.href = manifestURL;
+            document.head.appendChild(manifestLink);
+
+            const swCode = `
+          const CACHE_NAME = 'readbench-v1';
+          const urlsToCache = [
+            '/',
+            'https://cdn.tailwindcss.com',
+            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',
+            'https://cdn.jsdelivr.net/npm/chart.js',
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js',
+            'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+            'https://checkout.razorpay.com/v1/checkout.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+          ].map(url => new URL(url, self.location.origin).href);
+          
+          self.addEventListener('install', event => {
+            event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+            self.skipWaiting();
+          });
+          self.addEventListener('fetch', event => {
+            event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+          });
+          self.addEventListener('activate', event => {
+            event.waitUntil(clients.claim());
+          });
+        `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            const swURL = URL.createObjectURL(swBlob);
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swURL).catch(err => console.warn('SW failed', err));
+            }
+        })();
+    </script>
+</body>
+</html>
