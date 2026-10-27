@@ -1,0 +1,8 @@
+{
+  "name": "ReadBench — Library & Student Management System",
+  "description": "Comprehensive library and student management application featuring dynamic UPI QR payments, seat allotment by shifts, fee collection tracking, WhatsApp invoice reminders, and financial reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
