@@ -119,25 +119,33 @@ export default function App() {
     entries: [],
   });
 
-  // Prevent echoing remote snapshot back to Firebase
-  const isRemoteSyncRef = useRef<boolean>(false);
+  // Prevent echo loops between local state and Firebase Realtime Database
+  const lastSyncedJsonRef = useRef<string>('');
+  const lastReceivedJsonRef = useRef<string>('');
   const syncTimerRef = useRef<any>(null);
 
-  // Directly sync state to Firebase Realtime Database whenever state updates
+  // Directly sync state to Firebase Realtime Database whenever local state changes
   useEffect(() => {
     if (currentUser) {
       saveStoredState(state, currentUser.uid);
 
-      // If update arrived from Firebase remote snapshot, do not echo it back
-      if (isRemoteSyncRef.current) {
-        isRemoteSyncRef.current = false;
+      const currentJson = JSON.stringify(state);
+
+      // If state matches what Firebase remote just provided, do not echo it back
+      if (currentJson === lastReceivedJsonRef.current) {
+        return;
+      }
+
+      // If state matches what we already sent to Firebase, do not send again
+      if (currentJson === lastSyncedJsonRef.current) {
         return;
       }
 
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
+        lastSyncedJsonRef.current = currentJson;
         syncStateToFirebase(currentUser.uid, state);
-      }, 350);
+      }, 400);
     } else if (demoUserActive) {
       saveStoredState(state, 'guest');
     }
@@ -165,7 +173,9 @@ export default function App() {
         // Load local offline cache for this user immediately if present
         const userCache = loadStoredState(user.uid);
         if (userCache) {
-          setState(normalizeAppState(userCache, user.displayName || 'ANIKET ROY LIBRARY', user.email || ''));
+          const cachedNormalized = normalizeAppState(userCache, user.displayName || 'ANIKET ROY LIBRARY', user.email || '');
+          lastSyncedJsonRef.current = JSON.stringify(cachedNormalized);
+          setState(cachedNormalized);
         }
 
         // Direct realtime listener for user's isolated library branch in Firebase RTDB
@@ -174,20 +184,20 @@ export default function App() {
           if (snapshot.exists()) {
             const remoteData = snapshot.val();
             if (remoteData) {
-              isRemoteSyncRef.current = true;
               const cleanState = normalizeAppState(
                 remoteData,
                 user.displayName || 'ANIKET ROY LIBRARY',
                 user.email || ''
               );
+              const cleanJson = JSON.stringify(cleanState);
 
-              setState((prev) => {
-                if (JSON.stringify(prev) === JSON.stringify(cleanState)) {
-                  isRemoteSyncRef.current = false;
-                  return prev;
-                }
-                return cleanState;
-              });
+              // Ignore if already identical to our last sent or last received state
+              if (cleanJson === lastSyncedJsonRef.current || cleanJson === lastReceivedJsonRef.current) {
+                return;
+              }
+
+              lastReceivedJsonRef.current = cleanJson;
+              setState(cleanState);
               saveStoredState(cleanState, user.uid);
             }
           } else {
@@ -198,7 +208,9 @@ export default function App() {
               user.email || '',
               user.phoneNumber || '+918809474959'
             );
-            isRemoteSyncRef.current = true;
+            const freshJson = JSON.stringify(freshUserLibrary);
+            lastSyncedJsonRef.current = freshJson;
+            lastReceivedJsonRef.current = freshJson;
             setState(freshUserLibrary);
             syncStateToFirebase(user.uid, freshUserLibrary);
             saveStoredState(freshUserLibrary, user.uid);
@@ -522,8 +534,11 @@ export default function App() {
             const demoState = loadStoredState('guest');
             setState(demoState);
           } else if (libraryData) {
-            isRemoteSyncRef.current = true;
-            setState(normalizeAppState(libraryData));
+            const normalized = normalizeAppState(libraryData);
+            const normJson = JSON.stringify(normalized);
+            lastSyncedJsonRef.current = normJson;
+            lastReceivedJsonRef.current = normJson;
+            setState(normalized);
           }
         }}
       />

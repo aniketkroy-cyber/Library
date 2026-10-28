@@ -16,10 +16,9 @@ export default defineConfig(() => {
       include: ['react-is'],
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+      // HMR is completely disabled to prevent mobile clients and external tunnels
+      // from constantly triggering location.reload() when WebSockets disconnect.
+      hmr: false,
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

@@ -282,8 +282,8 @@ export function createBlankUserState(
       email: email || '',
       upiId: upiId || '',
     },
-    // 24-Hours Free Trial for new registrations
-    subscriptionExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    // 24-Hours Free Trial for new registrations (rounded to top of minute to prevent re-render jitter)
+    subscriptionExpiry: new Date(Math.floor(Date.now() / 60000) * 60000 + 24 * 60 * 60 * 1000).toISOString(),
     subscriptionPlan: 'trial_24h',
     subscriptionHistory: [],
   };
